@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import wave
 from math import gcd
 from pathlib import Path
 
@@ -11,14 +12,32 @@ import numpy as np
 SAMPLE_RATE = 16_000
 
 
+def decode_pcm_wav(data: bytes) -> tuple[np.ndarray, int]:
+    """Parse 16-bit PCM WAV (what the Aura web client records) with the standard library."""
+    with wave.open(io.BytesIO(data)) as w:
+        if w.getsampwidth() != 2:
+            raise ValueError("only 16-bit PCM WAV is supported")
+        frames = (
+            np.frombuffer(w.readframes(w.getnframes()), dtype="<i2").astype(np.float32) / 32768.0
+        )
+        channels, sr = w.getnchannels(), w.getframerate()
+    return frames.reshape(-1, channels).mean(axis=1), sr
+
+
 def load_audio(source: str | Path | bytes, target_sr: int = SAMPLE_RATE) -> np.ndarray:
-    """Decode WAV/FLAC/OGG bytes or a file path to mono float32 at `target_sr`."""
+    """Decode audio bytes or a file path to mono float32 at `target_sr`.
+    16-bit PCM WAV needs only numpy; other formats (FLAC/OGG...) use soundfile."""
+    raw = source if isinstance(source, bytes) else None
+    if raw is not None and raw[:4] == b"RIFF":
+        try:
+            wav, sr = decode_pcm_wav(raw)
+            return resample(wav, sr, target_sr)
+        except (ValueError, wave.Error):
+            pass
     import soundfile as sf
 
     data, sr = sf.read(
-        io.BytesIO(source) if isinstance(source, bytes) else str(source),
-        dtype="float32",
-        always_2d=True,
+        io.BytesIO(raw) if raw is not None else str(source), dtype="float32", always_2d=True
     )
     return resample(data.mean(axis=1), sr, target_sr)
 
@@ -26,8 +45,13 @@ def load_audio(source: str | Path | bytes, target_sr: int = SAMPLE_RATE) -> np.n
 def resample(wav: np.ndarray, sr: int, target_sr: int = SAMPLE_RATE) -> np.ndarray:
     if sr == target_sr:
         return wav.astype(np.float32)
-    from scipy.signal import resample_poly
-
+    try:
+        from scipy.signal import resample_poly
+    except ImportError:  # lite install: linear interpolation is fine for speech
+        n = int(round(len(wav) * target_sr / sr))
+        return np.interp(np.linspace(0, len(wav) - 1, n), np.arange(len(wav)), wav).astype(
+            np.float32
+        )
     g = gcd(sr, target_sr)
     return resample_poly(wav, target_sr // g, sr // g).astype(np.float32)
 
