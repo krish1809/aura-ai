@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Data, models and run outputs (large / licensed; see docs/DATA.md)
+data/raw/*
+data/processed/*
+artifacts/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!artifacts/.gitkeep
+# small, versioned evaluation reports are copied to docs/results/
+wandb/
+runs/
+unsloth_compiled_cache/
+outputs/
+
+# Local env / secrets
+.env
+*.db
+*.sqlite3
+
+# OS / editor
+.DS_Store
+._*
+.idea/
+.vscode/
