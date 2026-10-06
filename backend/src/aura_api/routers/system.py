@@ -42,6 +42,20 @@ def _get(d: dict, path: str):
 # (artifact dir, title, evaluation protocol, [(label, json path, kind)])
 REPORT = [
     (
+        "text_emotion",
+        "Emotion from text (CPU model)",
+        "GoEmotions test set, 7 emotions",
+        [
+            ("Accuracy", "test.accuracy", "pct"),
+            ("Macro-F1", "test.macro_f1", "pct"),
+            (
+                "Keyword-lexicon baseline, macro-F1",
+                "baselines_on_test.keyword_lexicon.macro_f1",
+                "pct",
+            ),
+        ],
+    ),
+    (
         "ece",
         "Emotion-cause extraction",
         "ESConv test split, silver labels",

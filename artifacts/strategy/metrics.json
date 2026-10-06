@@ -1,0 +1,161 @@
+{
+  "model": "TF-IDF (seeker msg, previous reply) + state features -> logistic regression",
+  "selected_C": 0.5,
+  "val_macro_f1": 0.24014923838742136,
+  "test": {
+    "accuracy": 0.31004366812227074,
+    "macro_f1": 0.22775109373654742,
+    "per_class": {
+      "Question": {
+        "precision": 0.40454545454545454,
+        "recall": 0.43309002433090027,
+        "f1": 0.418331374853114,
+        "support": 411
+      },
+      "Restatement or Paraphrasing": {
+        "precision": 0.30303030303030304,
+        "recall": 0.14388489208633093,
+        "f1": 0.1951219512195122,
+        "support": 139
+      },
+      "Reflection of feelings": {
+        "precision": 0.13953488372093023,
+        "recall": 0.029850746268656716,
+        "f1": 0.04918032786885246,
+        "support": 201
+      },
+      "Self-disclosure": {
+        "precision": 0.25925925925925924,
+        "recall": 0.06422018348623854,
+        "f1": 0.10294117647058824,
+        "support": 218
+      },
+      "Affirmation and Reassurance": {
+        "precision": 0.2138728323699422,
+        "recall": 0.296,
+        "f1": 0.2483221476510067,
+        "support": 375
+      },
+      "Providing Suggestions": {
+        "precision": 0.2969502407704655,
+        "recall": 0.4468599033816425,
+        "f1": 0.3567984570877531,
+        "support": 414
+      },
+      "Information": {
+        "precision": 0.13333333333333333,
+        "recall": 0.012903225806451613,
+        "f1": 0.023529411764705882,
+        "support": 155
+      },
+      "Others": {
+        "precision": 0.3660377358490566,
+        "recall": 0.5145888594164456,
+        "f1": 0.42778390297684676,
+        "support": 377
+      }
+    },
+    "labels": [
+      "Question",
+      "Restatement or Paraphrasing",
+      "Reflection of feelings",
+      "Self-disclosure",
+      "Affirmation and Reassurance",
+      "Providing Suggestions",
+      "Information",
+      "Others"
+    ],
+    "confusion_matrix": [
+      [
+        178,
+        14,
+        7,
+        6,
+        81,
+        70,
+        0,
+        55
+      ],
+      [
+        52,
+        20,
+        2,
+        0,
+        32,
+        25,
+        0,
+        8
+      ],
+      [
+        45,
+        8,
+        6,
+        5,
+        55,
+        48,
+        2,
+        32
+      ],
+      [
+        27,
+        3,
+        7,
+        14,
+        65,
+        61,
+        5,
+        36
+      ],
+      [
+        60,
+        13,
+        7,
+        10,
+        111,
+        87,
+        0,
+        87
+      ],
+      [
+        24,
+        1,
+        8,
+        11,
+        93,
+        185,
+        4,
+        88
+      ],
+      [
+        8,
+        2,
+        2,
+        4,
+        27,
+        80,
+        2,
+        30
+      ],
+      [
+        46,
+        5,
+        4,
+        4,
+        55,
+        67,
+        2,
+        194
+      ]
+    ]
+  },
+  "baselines_on_test": {
+    "majority_class": {
+      "accuracy": 0.1646288209606987,
+      "macro_f1": 0.03533933258342707
+    },
+    "repeat_previous_strategy": {
+      "accuracy": 0.21965065502183406,
+      "macro_f1": 0.19028120374238283
+    }
+  }
+}

@@ -1,0 +1,134 @@
+{
+  "model": "TF-IDF (word 1-2 + char 2-5 grams) -> class-balanced logistic regression",
+  "data": "GoEmotions, official Ekman mapping, single-category comments only",
+  "selected_C": 1.0,
+  "val_macro_f1": 0.572706544035963,
+  "test": {
+    "accuracy": 0.6423107890499195,
+    "macro_f1": 0.5865779191655811,
+    "per_class": {
+      "anger": {
+        "precision": 0.4461756373937677,
+        "recall": 0.5506993006993007,
+        "f1": 0.49295774647887325,
+        "support": 572
+      },
+      "disgust": {
+        "precision": 0.4823529411764706,
+        "recall": 0.5394736842105263,
+        "f1": 0.5093167701863354,
+        "support": 76
+      },
+      "fear": {
+        "precision": 0.5495495495495496,
+        "recall": 0.7625,
+        "f1": 0.6387434554973823,
+        "support": 80
+      },
+      "joy": {
+        "precision": 0.8486759142496847,
+        "recall": 0.7224906065485776,
+        "f1": 0.7805160916207597,
+        "support": 1863
+      },
+      "neutral": {
+        "precision": 0.6301369863013698,
+        "recall": 0.6014943960149439,
+        "f1": 0.6154826377827333,
+        "support": 1606
+      },
+      "sadness": {
+        "precision": 0.4807121661721068,
+        "recall": 0.5724381625441696,
+        "f1": 0.5225806451612903,
+        "support": 283
+      },
+      "surprise": {
+        "precision": 0.4918032786885246,
+        "recall": 0.6147540983606558,
+        "f1": 0.5464480874316939,
+        "support": 488
+      }
+    },
+    "labels": [
+      "anger",
+      "disgust",
+      "fear",
+      "joy",
+      "neutral",
+      "sadness",
+      "surprise"
+    ],
+    "confusion_matrix": [
+      [
+        315,
+        14,
+        9,
+        32,
+        136,
+        29,
+        37
+      ],
+      [
+        17,
+        41,
+        4,
+        1,
+        7,
+        3,
+        3
+      ],
+      [
+        4,
+        1,
+        61,
+        4,
+        5,
+        5,
+        0
+      ],
+      [
+        102,
+        5,
+        13,
+        1346,
+        279,
+        42,
+        76
+      ],
+      [
+        202,
+        17,
+        15,
+        148,
+        966,
+        79,
+        179
+      ],
+      [
+        27,
+        3,
+        5,
+        23,
+        48,
+        162,
+        15
+      ],
+      [
+        39,
+        4,
+        4,
+        32,
+        92,
+        17,
+        300
+      ]
+    ]
+  },
+  "baselines_on_test": {
+    "keyword_lexicon": {
+      "accuracy": 0.43699677938808373,
+      "macro_f1": 0.30749457133639796
+    }
+  }
+}

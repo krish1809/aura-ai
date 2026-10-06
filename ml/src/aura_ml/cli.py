@@ -1,7 +1,7 @@
 """`aura-ml` command: one entry point for every data, training and demo step.
 
-aura-ml build-ece | build-sft | get-fer2013
-aura-ml train-ece | train-ser | train-fer | train-strategy | train-topic | train-llm   [script args...]
+aura-ml build-ece | build-sft | get-fer2013 | get-goemotions
+aura-ml train-ece | train-ser | train-fer | train-strategy | train-topic | train-text-emotion | train-llm   [args...]
 aura-ml analyze "I can't sleep because of my exams"   (lite mode, no GPU needed)
 aura-ml status                                      (which trained artifacts exist)
 """
@@ -16,11 +16,13 @@ COMMANDS = {
     "build-ece": "aura_ml.data.ece_dataset",
     "build-sft": "aura_ml.data.sft_dataset",
     "get-fer2013": "aura_ml.data.fer2013",
+    "get-goemotions": "aura_ml.data.goemotions",
     "train-ece": "aura_ml.training.train_ece",
     "train-ser": "aura_ml.training.train_ser",
     "train-fer": "aura_ml.training.train_fer",
     "train-strategy": "aura_ml.training.train_strategy",
     "train-topic": "aura_ml.training.train_topic",
+    "train-text-emotion": "aura_ml.training.train_text_emotion",
     "train-llm": "aura_ml.training.train_llm",
 }
 
@@ -28,7 +30,15 @@ COMMANDS = {
 def _status() -> None:
     from aura_ml.config import ARTIFACTS_DIR
 
-    for name in ("ece", "ser", "fer", "strategy", "topic", "llm/aura-llama-3.2-3b-lora"):
+    for name in (
+        "text_emotion",
+        "strategy",
+        "topic",
+        "ece",
+        "ser",
+        "fer",
+        "llm/aura-llama-3.2-3b-lora",
+    ):
         metrics = ARTIFACTS_DIR / name / "metrics.json"
         print(f"{name:32s} {'trained' if metrics.exists() else 'missing'}")
 

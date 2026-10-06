@@ -74,7 +74,7 @@ def main() -> None:
         ),
     }
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, args.out_dir / "model.joblib")
+    joblib.dump(model, args.out_dir / "model.joblib", compress=3)
     write_json(
         args.out_dir / "metrics.json",
         {

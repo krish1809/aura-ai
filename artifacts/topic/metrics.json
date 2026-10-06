@@ -1,0 +1,120 @@
+{
+  "model": "TF-IDF (all seeker text so far) -> logistic regression",
+  "labels": [
+    "ongoing depression",
+    "job crisis",
+    "breakup with partner",
+    "problems with friends",
+    "academic pressure",
+    "other"
+  ],
+  "selected_C": 16.0,
+  "val_macro_f1": 0.6167666862946539,
+  "test": {
+    "accuracy": 0.6860090264345583,
+    "macro_f1": 0.624556702711876,
+    "per_class": {
+      "ongoing depression": {
+        "precision": 0.5635062611806798,
+        "recall": 0.7855361596009975,
+        "f1": 0.65625,
+        "support": 401
+      },
+      "job crisis": {
+        "precision": 0.6923076923076923,
+        "recall": 0.801980198019802,
+        "f1": 0.7431192660550459,
+        "support": 303
+      },
+      "breakup with partner": {
+        "precision": 0.7762711864406779,
+        "recall": 0.7003058103975535,
+        "f1": 0.7363344051446945,
+        "support": 327
+      },
+      "problems with friends": {
+        "precision": 0.7586206896551724,
+        "recall": 0.6637931034482759,
+        "f1": 0.7080459770114942,
+        "support": 232
+      },
+      "academic pressure": {
+        "precision": 0.8818897637795275,
+        "recall": 0.6086956521739131,
+        "f1": 0.7202572347266881,
+        "support": 184
+      },
+      "other": {
+        "precision": 0.6875,
+        "recall": 0.10576923076923077,
+        "f1": 0.18333333333333335,
+        "support": 104
+      }
+    },
+    "labels": [
+      "ongoing depression",
+      "job crisis",
+      "breakup with partner",
+      "problems with friends",
+      "academic pressure",
+      "other"
+    ],
+    "confusion_matrix": [
+      [
+        315,
+        36,
+        31,
+        11,
+        6,
+        2
+      ],
+      [
+        55,
+        243,
+        4,
+        1,
+        0,
+        0
+      ],
+      [
+        58,
+        20,
+        229,
+        12,
+        7,
+        1
+      ],
+      [
+        40,
+        7,
+        28,
+        154,
+        2,
+        1
+      ],
+      [
+        47,
+        22,
+        2,
+        0,
+        112,
+        1
+      ],
+      [
+        44,
+        23,
+        1,
+        25,
+        0,
+        11
+      ]
+    ]
+  },
+  "test_accuracy_after_k_user_turns": {
+    "1": 0.4564,
+    "2": 0.6308,
+    "3": 0.7128,
+    "5": 0.759,
+    "8": 0.7181
+  }
+}

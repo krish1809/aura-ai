@@ -1,0 +1,13 @@
+.git
+.venv
+**/__pycache__
+**/node_modules
+frontend/dist
+data
+artifacts/legacy
+artifacts/ece
+artifacts/ser
+artifacts/fer
+artifacts/llm
+*.db
+.env

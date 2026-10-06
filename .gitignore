@@ -18,6 +18,10 @@ frontend/dist/
 data/raw/*
 data/processed/*
 artifacts/*
+# small CPU models (sklearn, ~10 MB total) ship with the repo so lite mode works after a clone
+!artifacts/strategy/
+!artifacts/topic/
+!artifacts/text_emotion/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !artifacts/.gitkeep

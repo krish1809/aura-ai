@@ -1,0 +1,40 @@
+# Aura: web app + API (one container) and Postgres.
+#   cp .env.example .env   # set AURA_JWT_SECRET
+#   docker compose up --build        -> http://localhost:8000
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: aura
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aura}
+      POSTGRES_DB: aura
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aura -d aura"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  app:
+    build: .
+    image: aura:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      AURA_DATABASE_URL: postgresql+asyncpg://aura:${POSTGRES_PASSWORD:-aura}@db:5432/aura
+      AURA_JWT_SECRET: ${AURA_JWT_SECRET:?set AURA_JWT_SECRET in .env}
+      AURA_COOKIE_SECURE: ${AURA_COOKIE_SECURE:-false}
+      AURA_LLM_PROVIDER: ${AURA_LLM_PROVIDER:-mock}
+      AURA_OPENAI_BASE_URL: ${AURA_OPENAI_BASE_URL:-http://host.docker.internal:11434/v1}
+      AURA_OPENAI_MODEL: ${AURA_OPENAI_MODEL:-aura}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
