@@ -122,6 +122,12 @@ class ModelHub:
 
             self.text_emotion = TextEmotionClassifier(self.cfg.text_emotion_model, self.cfg.device)
             return "distilroberta"
+        path = self._art("text_emotion", "model.joblib")
+        if path.exists():
+            from aura_ml.models.text_emotion import TfidfEmotionClassifier
+
+            self.text_emotion = TfidfEmotionClassifier(path)
+            return "tfidf-goemotions"
         self.text_emotion = LexiconEmotionClassifier()
         return "lexicon"
 

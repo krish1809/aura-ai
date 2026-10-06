@@ -92,9 +92,12 @@ async def update_graph(session: AsyncSession, user_id: str, analysis: dict) -> N
         else None
     )
 
+    # A feeling only joins the graph when something in this message explains it
+    # (a cause or a person) - isolated emotion nodes carry no information.
+    linked = bool(cause_text or analysis.get("entities"))
     emo_node = (
         await _node(session, user_id, "emotion", emotion, now)
-        if emotion and emotion != "neutral"
+        if emotion and emotion != "neutral" and linked
         else None
     )
     cause_node = (

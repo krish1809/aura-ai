@@ -37,3 +37,4 @@ outputs/
 ._*
 .idea/
 .vscode/
+frontend/node_modules/

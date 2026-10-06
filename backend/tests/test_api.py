@@ -117,7 +117,7 @@ def test_memory_notes_after_summary_and_forget(client, user):
         client, conv["id"], "My manager keeps piling on deadlines"
     )  # summarize_every=2 -> summary
     notes = client.get("/api/memory/notes").json()["notes"]
-    assert "They talked about" in notes
+    assert "They said: My manager keeps piling on deadlines" in notes
     client.delete("/api/memory")
     assert client.get("/api/memory/notes").json()["notes"] == ""
     assert client.get("/api/memory/graph").json()["nodes"] == []
@@ -188,3 +188,11 @@ def test_spa_serving_blocks_path_traversal(settings, tmp_path):
         assert "Aura" in c.get("/chat/123").text  # client-side route -> index.html
         assert "top secret" not in c.get("/..%2Fsecret.txt").text
         assert c.get("/api/health").status_code == 200
+
+
+def test_metrics_report_reads_trained_artifacts(client):
+    models = {m["id"]: m for m in client.get("/api/system/metrics").json()["models"]}
+    assert set(models) >= {"ece", "ser", "fer", "strategy", "topic"}
+    if models["strategy"]["trained"]:  # trained in this checkout
+        labels = {m["label"] for m in models["strategy"]["metrics"]}
+        assert "Accuracy (8 strategies)" in labels

@@ -135,29 +135,61 @@ class OpenAICompatLLM(LLM):
 
 
 class MockLLM(LLM):
-    """Template replies keyed on the strategy line of the system prompt."""
+    """Deterministic template replies keyed on the strategy line of the system prompt
+    (varied per message), and transcript-based notes for summary requests."""
 
     name = "mock"
     REPLIES = {
-        "gentle, open-ended question": "That sounds really heavy. Could you tell me a little more about what has been weighing on you?",
-        "restate": "So if I'm hearing you right, this has been building up for a while and it's wearing you down.",
-        "name and validate": "It makes complete sense that you feel this way - anyone in your place would be struggling too.",
-        "relatable experience": "I've been through something similar, and I remember how lonely it felt. You're not alone in this.",
-        "affirm their strengths": "Reaching out like this takes real strength, and I believe you can get through this.",
-        "practical, concrete suggestion": "Would it help to take one small step today, like writing down what worries you most?",
-        "factual information": "Many people go through this, and talking to someone you trust can genuinely ease the load.",
-        "warm, general support": "I'm here with you. Take your time - I'm listening.",
+        "gentle, open-ended question": [
+            "That sounds really heavy. Could you tell me a little more about what has been weighing on you?",
+            "I'd like to understand this better. When did you first start feeling this way?",
+            "What has been the hardest part of this for you?",
+        ],
+        "restate": [
+            "So if I'm hearing you right, this has been building up for a while and it's wearing you down.",
+            "It sounds like you've been carrying a lot on your own lately.",
+        ],
+        "name and validate": [
+            "It makes complete sense that you feel this way - anyone in your place would be struggling too.",
+            "That sounds genuinely painful, and your feelings about it are valid.",
+        ],
+        "relatable experience": [
+            "I've been through something similar, and I remember how lonely it felt. You're not alone in this.",
+            "I remember feeling that way once too, and it took time before it eased.",
+        ],
+        "affirm their strengths": [
+            "Reaching out like this takes real strength, and I believe you can get through this.",
+            "You're handling more than most people realise, and you're still showing up. That matters.",
+        ],
+        "practical, concrete suggestion": [
+            "Would it help to take one small step today, like writing down what worries you most?",
+            "Maybe try breaking it into one small task for tomorrow - just one, nothing more.",
+        ],
+        "factual information": [
+            "Many people go through this, and talking to someone you trust can genuinely ease the load.",
+            "Stress like this is very common, and short breaks and sleep make a real difference to how we cope.",
+        ],
+        "warm, general support": [
+            "I'm here with you. Take your time - I'm listening.",
+            "Thank you for sharing that with me. I'm glad you're talking about it.",
+        ],
     }
 
     def stream(self, messages, *, use_adapter=True, **_) -> Iterator[str]:
-        system = messages[0]["content"] if messages and messages[0]["role"] == "system" else ""
-        if not use_adapter:  # summary request
-            user_lines = [m["content"] for m in messages if m["role"] == "user"]
-            reply = "- They talked about: " + (user_lines[-1][:160] if user_lines else "their day")
+        if not use_adapter:  # memory-summary request: bullet the user's own recent lines
+            prompt = messages[-1]["content"] if messages else ""
+            said = [ln[6:].strip() for ln in prompt.splitlines() if ln.startswith("User: ")][-2:]
+            reply = (
+                "\n".join(f"- They said: {line[:140]}" for line in said)
+                or "- They shared how their day went."
+            )
         else:
-            reply = next(
+            system = messages[0]["content"] if messages and messages[0]["role"] == "system" else ""
+            options = next(
                 (r for key, r in self.REPLIES.items() if key in system),
                 self.REPLIES["warm, general support"],
             )
+            seed = sum(map(ord, messages[-1]["content"])) if messages else 0
+            reply = options[seed % len(options)]
         for i, word in enumerate(reply.split(" ")):
             yield word if i == 0 else " " + word

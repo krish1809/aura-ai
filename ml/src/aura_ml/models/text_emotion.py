@@ -31,26 +31,46 @@ class TextEmotionClassifier:
         return {"available": True, "probs": probs, "emotion": top, "confidence": probs[top]}
 
 
+class TfidfEmotionClassifier:
+    """CPU model trained on GoEmotions (aura_ml.training.train_text_emotion)."""
+
+    source = "tfidf-goemotions"
+
+    def __init__(self, model_path):
+        import joblib
+
+        self.pipeline = joblib.load(model_path)
+        self.classes = list(self.pipeline.classes_)
+
+    def predict(self, text: str) -> dict:
+        raw = dict(zip(self.classes, self.pipeline.predict_proba([text])[0], strict=True))
+        probs = {e: round(float(raw.get(e, 0.0)), 4) for e in EMOTIONS}
+        top = max(probs, key=probs.get)
+        return {"available": True, "probs": probs, "emotion": top, "confidence": probs[top]}
+
+
 _LEXICON = {
     "anger": "angry mad furious annoyed irritated frustrated pissed hate rage resent unfair yelled",
     "disgust": "disgusted gross sick revolting ashamed shame disgusting",
     "fear": "anxious anxiety afraid scared worried worry nervous panic terrified stress stressed fear dread overwhelmed",
     "joy": "happy glad excited great good relieved grateful thankful love better proud hopeful joy",
-    "sadness": "sad depressed down lonely alone cry crying hopeless miss lost hurt heartbroken empty tired grief",
+    "sadness": "sad depressed down lonely alone cry crying hopeless miss lost hurt heartbroken empty tired grief die dying death life worthless",
     "surprise": "surprised shocked unexpected suddenly wow unbelievable",
 }
 _WORD = re.compile(r"[a-z']+")
 
 
 class LexiconEmotionClassifier:
+    """Last-resort keyword fallback. Smoothed so it never claims certainty."""
+
     source = "lexicon"
 
     def __init__(self):
         self.index = {w: emo for emo, words in _LEXICON.items() for w in words.split()}
 
     def predict(self, text: str) -> dict:
-        counts = dict.fromkeys(EMOTIONS, 0.0)
-        counts["neutral"] = 0.5
+        counts = dict.fromkeys(EMOTIONS, 0.3)
+        counts["neutral"] = 0.8
         for word in _WORD.findall(text.lower()):
             for key, emo in self.index.items():
                 if word.startswith(key):

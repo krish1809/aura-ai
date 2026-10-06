@@ -1,0 +1,189 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/fraunces';
+
+/* ---- Design tokens -------------------------------------------------------------
+   Raw values live on :root and are re-stepped for dark mode (OS setting, or the
+   in-app toggle which wins both ways). Tailwind utilities read them through
+   @theme inline, so `bg-surface`, `text-ink-2`, `border-line` etc. follow the theme.
+   Emotion and chart colours are the dataviz reference palette, validated for
+   colour-vision deficiency in this fixed order against these surfaces.            */
+:root {
+  color-scheme: light;
+  --bg: #f7f6f3;
+  --surface: #ffffff;
+  --surface-2: #f1f0ec;
+  --surface-3: #e8e6e0;
+  --ink: #18181b;
+  --ink-2: #52514e;
+  --ink-3: #6f6d68;
+  --line: #e6e4de;
+  --accent: #5b4bc4;
+  --accent-ink: #ffffff;
+  --accent-soft: #ecebfb;
+  --user-bubble: #ecebfb;
+  --chart: #2a78d6;
+  --chart-soft: #cde2fb;
+  --grid: #e1e0d9;
+  --critical: #d03b3b;
+  --critical-soft: #fdecec;
+  --warning: #b77700;
+  --warning-soft: #fff4dc;
+
+  --emo-anger: #e34948;
+  --emo-disgust: #008300;
+  --emo-fear: #4a3aa7;
+  --emo-joy: #eda100;
+  --emo-sadness: #2a78d6;
+  --emo-surprise: #eb6834;
+  --emo-neutral: #1baf7a;
+
+  --kind-person: #2a78d6;
+  --kind-cause: #eb6834;
+  --kind-topic: #1baf7a;
+  --kind-emotion: #eda100;
+  --kind-entity: #e87ba4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    color-scheme: dark;
+    --bg: #0f0f11;
+    --surface: #1c1c1f;
+    --surface-2: #26262a;
+    --surface-3: #303035;
+    --ink: #f4f4f5;
+    --ink-2: #c3c2b7;
+    --ink-3: #9a988f;
+    --line: #2e2e33;
+    --accent: #8f80ea;
+    --accent-ink: #13111f;
+    --accent-soft: #2a2645;
+    --user-bubble: #2a2645;
+    --chart: #3987e5;
+    --chart-soft: #184f95;
+    --grid: #2c2c2a;
+    --critical: #e66767;
+    --critical-soft: #3a1f1f;
+    --warning: #e0a32c;
+    --warning-soft: #3a2f17;
+    --emo-anger: #e66767;
+    --emo-disgust: #008300;
+    --emo-fear: #9085e9;
+    --emo-joy: #c98500;
+    --emo-sadness: #3987e5;
+    --emo-surprise: #d95926;
+    --emo-neutral: #199e70;
+    --kind-person: #3987e5;
+    --kind-cause: #d95926;
+    --kind-topic: #199e70;
+    --kind-emotion: #c98500;
+    --kind-entity: #d55181;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0f0f11;
+  --surface: #1c1c1f;
+  --surface-2: #26262a;
+  --surface-3: #303035;
+  --ink: #f4f4f5;
+  --ink-2: #c3c2b7;
+  --ink-3: #9a988f;
+  --line: #2e2e33;
+  --accent: #8f80ea;
+  --accent-ink: #13111f;
+  --accent-soft: #2a2645;
+  --user-bubble: #2a2645;
+  --chart: #3987e5;
+  --chart-soft: #184f95;
+  --grid: #2c2c2a;
+  --critical: #e66767;
+  --critical-soft: #3a1f1f;
+  --warning: #e0a32c;
+  --warning-soft: #3a2f17;
+  --emo-anger: #e66767;
+  --emo-disgust: #008300;
+  --emo-fear: #9085e9;
+  --emo-joy: #c98500;
+  --emo-sadness: #3987e5;
+  --emo-surprise: #d95926;
+  --emo-neutral: #199e70;
+  --kind-person: #3987e5;
+  --kind-cause: #d95926;
+  --kind-topic: #199e70;
+  --kind-emotion: #c98500;
+  --kind-entity: #d55181;
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces Variable', Georgia, serif;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-user-bubble: var(--user-bubble);
+  --color-chart: var(--chart);
+  --color-chart-soft: var(--chart-soft);
+  --color-critical: var(--critical);
+  --color-critical-soft: var(--critical-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Aura orb: a slow, soft glow used for the logo and the "thinking" indicator */
+.aura-orb {
+  background: radial-gradient(circle at 38% 32%, #fde68a 0%, #f0a1c2 45%, #6d5bd0 100%);
+}
+
+@keyframes aura-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+
+.animate-breathe {
+  animation: aura-breathe 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-breathe {
+    animation: none;
+  }
+}
+
+/* hide scrollbars on horizontal chip rows without hiding content */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
