@@ -5,6 +5,11 @@ description = "Aura: a multimodal emotional-support companion (workspace root)"
 requires-python = ">=3.11"
 dependencies = ["aura-ml", "aura-api"]
 
+[project.optional-dependencies]
+# `uv sync --extra inference` for full mode, `uv sync --extra train` to train the GPU models
+inference = ["aura-ml[inference]"]
+train = ["aura-ml[train]"]
+
 [tool.uv.workspace]
 members = ["ml", "backend"]
 

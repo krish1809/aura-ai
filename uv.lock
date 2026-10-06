@@ -344,6 +344,14 @@ dependencies = [
     { name = "aura-ml" },
 ]
 
+[package.optional-dependencies]
+inference = [
+    { name = "aura-ml", extra = ["inference"] },
+]
+train = [
+    { name = "aura-ml", extra = ["train"] },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
@@ -355,7 +363,10 @@ dev = [
 requires-dist = [
     { name = "aura-api", editable = "backend" },
     { name = "aura-ml", editable = "ml" },
+    { name = "aura-ml", extras = ["inference"], marker = "extra == 'inference'", editable = "ml" },
+    { name = "aura-ml", extras = ["train"], marker = "extra == 'train'", editable = "ml" },
 ]
+provides-extras = ["inference", "train"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -4369,7 +4380,6 @@ dependencies = [
     { name = "tqdm" },
     { name = "transformers" },
     { name = "triton", marker = "'linux' in sys_platform" },
-    { name = "triton-windows", marker = "python_version < '0'" },
     { name = "trl" },
     { name = "typer" },
     { name = "tyro" },
