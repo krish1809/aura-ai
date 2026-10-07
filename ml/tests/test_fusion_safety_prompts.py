@@ -110,3 +110,51 @@ def test_mock_llm_follows_strategy_line():
 def test_relation_entities_without_spacy():
     ents = EntityExtractor(None).extract("My best friend and my Mom had a fight")
     assert {e["text"] for e in ents} == {"friend", "mom"}
+
+
+def test_self_disclosure_is_never_chosen():
+    from aura_ml.pipeline import avoid_self_disclosure
+
+    pred = {
+        "strategy": "Self-disclosure",
+        "confidence": 0.5,
+        "probs": {"Self-disclosure": 0.5, "Question": 0.3, "Others": 0.2},
+    }
+    out = avoid_self_disclosure(pred)
+    assert out["strategy"] == "Question" and out["confidence"] == 0.3
+    assert out["skipped"]["strategy"] == "Self-disclosure"
+    assert (
+        avoid_self_disclosure({"strategy": "Question", "confidence": 1, "probs": {}})["strategy"]
+        == "Question"
+    )
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Are you a real person?", True),
+        ("r u a bot", True),
+        ("where do you live?", True),
+        ("who are you", True),
+        ("Do you have a family?", True),
+        ("wow. are you in the UK?", True),
+        ("What are you doing about my problem", False),
+        ("Are you there?", False),
+        ("I live in Pune and I hate it", False),
+    ],
+)
+def test_identity_questions(text, expected):
+    from aura_ml.safety import is_identity_question
+
+    assert is_identity_question(text) is expected
+
+
+def test_human_claims_are_removed_sentence_by_sentence():
+    from aura_ml.safety import remove_human_claims
+
+    kept, removed = remove_human_claims(
+        "I'm a real person, I promise. I've been through something similar with my wife. How are you feeling now?"
+    )
+    assert kept == "How are you feeling now?"
+    assert len(removed) == 2
+    assert remove_human_claims("That sounds really hard. What happened next?")[1] == []

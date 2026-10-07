@@ -30,7 +30,13 @@ from aura_api.services.ml import MLService
 from aura_ml.audio import SAMPLE_RATE, load_audio
 from aura_ml.pipeline import TurnState, prompt_context
 from aura_ml.prompts import build_messages
-from aura_ml.safety import CRISIS_RESPONSE, DEFAULT_RESOURCES
+from aura_ml.safety import (
+    CRISIS_RESPONSE,
+    DEFAULT_RESOURCES,
+    IDENTITY_RESPONSE,
+    is_identity_question,
+    remove_human_claims,
+)
 
 log = logging.getLogger("aura_api.chat")
 Send = Callable[[dict], Awaitable[None]]
@@ -150,11 +156,15 @@ class ChatOrchestrator:
 
             # Respond
             level = analysis["safety"]["level"]
+            strategy = (analysis.get("strategy") or {}).get("strategy")
+            removed: list[str] = []
             if level == "crisis":
                 await send({"type": "safety", "level": level, "resources": DEFAULT_RESOURCES})
-                reply, model_name = CRISIS_RESPONSE, "safety-template"
-                for sentence in re.split(r"(?<=[.!?]) ", reply):
-                    await send({"type": "token", "text": sentence + " "})
+                reply, model_name, strategy = CRISIS_RESPONSE, "safety-template", None
+                await self._send_text(send, reply)
+            elif is_identity_question(text):
+                reply, model_name, strategy = IDENTITY_RESPONSE, "honesty-template", None
+                await self._send_text(send, reply)
             else:
                 notes = await memory.load_notes(session, user_id)
                 ctx = prompt_context(analysis, notes)
@@ -168,16 +178,15 @@ class ChatOrchestrator:
                 async for chunk in self.ml.stream(messages):
                     parts.append(chunk)
                     await send({"type": "token", "text": chunk})
-                reply, model_name = clean_reply("".join(parts)) or FALLBACK_REPLY, self.ml.llm_name
+                reply, removed = remove_human_claims(clean_reply("".join(parts)))
+                reply, model_name = reply or FALLBACK_REPLY, self.ml.llm_name
 
-            strategy = (
-                (analysis.get("strategy") or {}).get("strategy") if level != "crisis" else None
-            )
             bot_msg = Message(
                 conversation_id=conv.id,
                 role="assistant",
                 content=reply,
-                meta={"strategy": strategy, "model": model_name, "safety": level},
+                meta={"strategy": strategy, "model": model_name, "safety": level}
+                | ({"honesty_removed": removed} if removed else {}),
             )
             session.add(bot_msg)
             await session.commit()
@@ -192,6 +201,11 @@ class ChatOrchestrator:
                     "conversation": {"id": conv.id, "title": conv.title},
                 }
             )
+
+    @staticmethod
+    async def _send_text(send: Send, text: str) -> None:
+        for sentence in re.split(r"(?<=[.!?]) ", text):
+            await send({"type": "token", "text": sentence + " "})
 
     def _spawn(self, coro) -> None:
         task = asyncio.create_task(coro)

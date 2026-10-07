@@ -161,6 +161,11 @@ export function InsightPanel({ message, onClose }: { message: Message | null; on
               <div>
                 <p className="text-sm font-medium">{STRATEGY_LABEL[a.strategy.strategy] ?? a.strategy.strategy}</p>
                 <p className="text-xs text-ink-2">{STRATEGY_HELP[a.strategy.strategy]}</p>
+                {a.strategy.skipped && (
+                  <p className="mt-1 text-xs text-ink-3">
+                    “{STRATEGY_LABEL[a.strategy.skipped.strategy] ?? a.strategy.skipped.strategy}” scored higher, but {a.strategy.skipped.reason.toLowerCase()}.
+                  </p>
+                )}
               </div>
               <ul className="space-y-1 text-xs" aria-label="Strategy alternatives">
                 {Object.entries(a.strategy.probs)

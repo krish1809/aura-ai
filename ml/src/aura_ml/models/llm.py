@@ -36,13 +36,13 @@ class LocalLLM(LLM):
 
         adapter = Path(adapter_dir) if adapter_dir and Path(adapter_dir).exists() else None
         self.tokenizer = AutoTokenizer.from_pretrained(str(adapter or base_model))
-        quant = None
-        if "bnb-4bit" not in base_model:
-            quant = BitsAndBytesConfig(
+        kwargs = {}
+        if "bnb-4bit" not in base_model:  # pre-quantized checkpoints carry their own config
+            kwargs["quantization_config"] = BitsAndBytesConfig(
                 load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=torch.bfloat16
             )
         self.model = AutoModelForCausalLM.from_pretrained(
-            base_model, device_map=device, torch_dtype=torch.bfloat16, quantization_config=quant
+            base_model, device_map=device, dtype=torch.bfloat16, **kwargs
         )
         self.has_adapter = adapter is not None
         if adapter:

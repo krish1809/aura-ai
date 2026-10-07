@@ -74,7 +74,11 @@ class MLService:
             self.hub = await asyncio.get_running_loop().run_in_executor(
                 self._perception_pool, lambda: ModelHub(cfg).load()
             )
+            warm = await asyncio.get_running_loop().run_in_executor(
+                self._perception_pool, self.hub.warmup
+            )
             log.info("models ready: %s", {k: v.get("source") for k, v in self.hub.status.items()})
+            log.info("warm-up (s): %s", warm)
         except Exception as exc:  # pragma: no cover - surfaced through /api/system/models
             self.load_error = f"{type(exc).__name__}: {exc}"
             log.exception("model hub failed to load")

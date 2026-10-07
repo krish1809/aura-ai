@@ -58,7 +58,7 @@ export interface Analysis {
   }
   entities: { text: string; label: string }[]
   topic: (Ranked & { topic: string }) | null
-  strategy: (Ranked & { strategy: string }) | null
+  strategy: (Ranked & { strategy: string; skipped?: { strategy: string; reason: string } }) | null
   timings_ms: Record<string, number>
 }
 

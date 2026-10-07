@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import contextlib
 import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -22,8 +23,10 @@ from aura_api.security import decode_token
 from aura_api.services.chat import TurnError, TurnInput
 from aura_api.services.face import FaceTracker
 from aura_api.services.ml import ModelsNotReady
+from aura_ml.safety import assess
 
 router = APIRouter()
+MAX_QUEUED_TURNS = 3
 log = logging.getLogger("aura_api.ws")
 
 
@@ -52,8 +55,16 @@ async def chat_socket(ws: WebSocket, conversation_id: str) -> None:
         async with send_lock:
             await ws.send_json(event)
 
-    async def run_turn(inp: TurnInput) -> None:
+    queued = 0
+
+    async def run_turn(inp: TurnInput, previous: asyncio.Task | None) -> None:
+        # Turns run strictly in order: a message sent while Aura is still replying waits
+        # for the previous turn instead of being dropped.
+        nonlocal queued
         try:
+            if previous is not None:
+                with contextlib.suppress(Exception, asyncio.CancelledError):
+                    await previous
             await app.state.chat.handle(user_id, conversation_id, inp, tracker.current(), send)
         except (TurnError, ModelsNotReady) as exc:
             await send({"type": "error", "detail": str(exc)})
@@ -67,6 +78,8 @@ async def chat_socket(ws: WebSocket, conversation_id: str) -> None:
                     "detail": "Something went wrong while replying. Please try again.",
                 }
             )
+        finally:
+            queued -= 1
 
     async def run_frame(data: bytes) -> None:
         try:
@@ -88,11 +101,14 @@ async def chat_socket(ws: WebSocket, conversation_id: str) -> None:
             event = await ws.receive_json()
             kind = event.get("type")
             if kind == "message":
-                if turn_task and not turn_task.done():
+                text = event.get("text") or ""
+                # a crisis message is never turned away, however busy the connection is
+                if queued >= MAX_QUEUED_TURNS and assess(text)["level"] != "crisis":
                     await send({"type": "error", "detail": "Aura is still replying - one moment."})
                     continue
+                queued += 1
                 turn_task = asyncio.create_task(
-                    run_turn(TurnInput(text=event.get("text") or "", audio_b64=event.get("audio")))
+                    run_turn(TurnInput(text=text, audio_b64=event.get("audio")), turn_task)
                 )
             elif kind == "frame":
                 if frame_task and not frame_task.done():

@@ -31,7 +31,7 @@ from aura_ml.models.ner import EntityExtractor
 from aura_ml.models.strategy import StrategyContext
 from aura_ml.models.text_emotion import LexiconEmotionClassifier
 from aura_ml.prompts import PromptContext
-from aura_ml.safety import ELEVATED_INSTRUCTION, assess
+from aura_ml.safety import ELEVATED_INSTRUCTION, HONESTY_INSTRUCTION, assess
 
 log = logging.getLogger("aura_ml.hub")
 
@@ -203,6 +203,31 @@ class ModelHub:
         self.llm = MockLLM()
         return "mock"
 
+    def warmup(self) -> dict[str, float]:
+        """Run every loaded model once so the first real user doesn't pay for CUDA kernel
+        compilation and lazy initialisation (the first Whisper call takes ~10 s cold)."""
+        timings: dict[str, float] = {}
+        tone = (0.1 * np.sin(np.linspace(0, 2 * np.pi * 220, 16_000))).astype(np.float32)
+        jobs = {
+            "text_emotion": lambda: self.text_emotion.predict("I feel okay today"),
+            "ece": lambda: self.ece.predict("I am sad because I lost my job"),
+            "stt": lambda: self.stt and self.stt.transcribe(tone),
+            "ser": lambda: self.ser and self.ser.predict(tone),
+            "fer": lambda: self.fer and self.fer.predict_image(np.zeros((240, 320, 3), np.uint8)),
+            "llm": lambda: (
+                self.llm
+                and self.llm.generate([{"role": "user", "content": "hi"}], max_new_tokens=4)
+            ),
+        }
+        for name, job in jobs.items():
+            t0 = time.perf_counter()
+            try:
+                job()
+            except Exception as exc:  # warm-up must never block start-up
+                log.warning("warm-up of %s failed: %s", name, exc)
+            timings[name] = round(time.perf_counter() - t0, 2)
+        return timings
+
     def _fallback(self, name: str) -> None:
         if name == "text_emotion":
             self.text_emotion = LexiconEmotionClassifier()
@@ -263,6 +288,11 @@ def analyze_turn(
     ece = _timed(timings, "cause", hub.ece.predict, text)
     if not isinstance(ece, dict):
         ece = ece.to_dict() | {"source": "model"}
+    if ece["source"] == "model" and not any(len(c["text"].split()) >= 2 for c in ece["causes"]):
+        # the model is weak on rare patterns ("X makes me feel Y"); the rules are high-precision
+        backup = RuleCauseExtractor().predict(text)
+        if backup["causes"]:
+            ece = backup | {"source": "rules (model found none)"}
     if ece["causes"]:
         cause = {"text": ece["causes"][0]["text"], "from": "this message"}
     elif state.last_cause:
@@ -291,6 +321,7 @@ def analyze_turn(
                 problem_type=topic["topic"] if topic else "",
             ),
         )
+        strategy = avoid_self_disclosure(strategy)
     return {
         "safety": safety,
         "emotion": fused,
@@ -304,14 +335,38 @@ def analyze_turn(
     }
 
 
+# ESConv supporters were people sharing their own lives; an AI companion must not invent
+# one, so Aura never uses this strategy and takes the next most likely instead.
+DISALLOWED_STRATEGIES = {"Self-disclosure": "Aura does not invent personal experiences"}
+
+
+def avoid_self_disclosure(strategy: dict) -> dict:
+    if strategy["strategy"] not in DISALLOWED_STRATEGIES:
+        return strategy
+    ranked = [s for s in strategy["probs"] if s not in DISALLOWED_STRATEGIES]
+    chosen = max(ranked, key=strategy["probs"].get)
+    return strategy | {
+        "strategy": chosen,
+        "confidence": strategy["probs"][chosen],
+        "skipped": {
+            "strategy": strategy["strategy"],
+            "reason": DISALLOWED_STRATEGIES[strategy["strategy"]],
+        },
+    }
+
+
 def prompt_context(analysis: dict, memory: str | None) -> PromptContext:
     topic = analysis.get("topic") or {}
     strategy = analysis.get("strategy") or {}
-    extra = ELEVATED_INSTRUCTION if analysis["safety"]["level"] == "elevated" else None
+    extra = HONESTY_INSTRUCTION
+    if analysis["safety"]["level"] == "elevated":
+        extra = f"{ELEVATED_INSTRUCTION}\n{HONESTY_INSTRUCTION}"
     return PromptContext(
         emotion=analysis["emotion"]["emotion"] if analysis["emotion"]["modalities"] else None,
         cause=analysis["cause"]["text"],
-        topic=topic.get("topic") if topic.get("topic") not in (None, "other") else None,
+        topic=topic.get("topic")
+        if topic.get("topic") not in (None, "other") and topic.get("confidence", 0) >= 0.4
+        else None,
         entities=[e["text"] for e in analysis.get("entities", [])],
         memory=memory,
         strategy=strategy.get("strategy"),

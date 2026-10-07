@@ -87,7 +87,7 @@ app's *How Aura works* page shows them live.
 | Emotion-cause extraction (RoBERTa) | ESConv, silver labels | **72.7%** span F1 · **96.2%** has-cause acc | 2025 model: 6.9% has-cause acc |
 | Voice emotion (wav2vec2) | RAVDESS, 4 unseen speakers | **72.9%** acc · 70.2% macro-F1 | 2025 model: 44.6% acc |
 | Facial emotion (ResNet-18) | FER2013 PrivateTest | **72.0%** acc · 70.7% macro-F1 | human ≈ 65% |
-| Reply LLM (Llama 3.2 3B + LoRA) | ESConv test replies | *training in progress* (perplexity vs base) | base model |
+| Reply LLM (Llama 3.2 3B + LoRA) | ESConv test replies | perplexity **10.8** · replies of 16 words, like real supporters | base model: 27.9 perplexity, 38-word replies |
 
 Strategy prediction on ESConv is a hard task: published systems report roughly 28–32% accuracy. See
 [docs/RESULTS.md](docs/RESULTS.md) for per-class results and how this version differs from the 2025 prototype.

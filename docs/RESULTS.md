@@ -132,7 +132,28 @@ on PublicTest and reported once on PrivateTest (3,589 faces), with horizontal-fl
 
 ## Reply LLM (Llama 3.2 3B + LoRA)
 
-*Training in progress.* Results will be test-reply perplexity (base vs fine-tuned), ROUGE-L and distinct-n.
+QLoRA via Unsloth (r=16, all linear layers), 1 epoch over 10,191 examples, loss on the final reply only. Training took
+91 minutes on the RTX 4050. The best checkpoint by validation loss was step 500 (2.193). Evaluation uses unseen ESConv
+test conversations, comparing the same weights with the adapter switched off (base) and on (Aura).
+
+| | Base Llama 3.2 3B Instruct | **Aura fine-tune** | Real supporter replies |
+|---|---|---|---|
+| Perplexity of the real replies (400) | 27.9 | **10.8** | n/a |
+| ROUGE-L vs the real reply (100 sampled) | 0.091 | **0.111** | n/a |
+| Distinct-2 (diversity) | 0.68 | **0.80** | n/a |
+| Average length | 38.5 words | **16.5 words** | 20.6 words |
+
+The base model answers in long, therapist-style paragraphs. Aura answers the way human supporters did: briefly,
+warmly, and with a question that moves the conversation on.
+
+**Honesty.** Learning from human volunteers also taught the model to talk as one ("Yes, I am", "I'm in the States").
+Three safeguards prevent this:
+
+1. Aura never uses the self-disclosure strategy, so it doesn't invent personal experiences.
+2. Questions about what Aura is ("are you real?", "where do you live?") get a fixed, truthful answer.
+3. Any generated sentence claiming a human life is removed before the reply is stored.
+
+All three are covered by tests.
 
 ## Differences from the 2025 prototype
 
@@ -142,6 +163,7 @@ that this rebuild fixes:
 
 | Problem in 2025 | Fix in this version |
 |---|---|
+| The paper's LLM was never trained on the hyper-contextual data, and the saved adapter predates it | Trained on the rebuilt data: test-reply perplexity 27.9 → 10.8 vs the base model |
 | Cause labels came from noisy keywords (*to*, *for*, *on*) and the wrong side of *so*/*therefore* | High-precision rules, backward markers handled, feeling required for *because*/*since* |
 | No negative examples: the cause classifier's 100% accuracy was meaningless | Utterances without a cause are negatives; validation/test keep the natural ratio |
 | Inference decoded BIO tags as B=0/I=1/O=2, but training used O=0/B=1/I=2 | Character-offset BIO with one shared definition and tests |

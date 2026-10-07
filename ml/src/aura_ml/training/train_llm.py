@@ -63,26 +63,21 @@ def encode_split(rows: list[dict], tokenizer, max_len: int) -> list[dict]:
 
 
 @torch.inference_mode()
-def reply_perplexity(model, tokenizer, items: list[dict], use_adapter: bool, bs: int = 8) -> float:
-    collate = DataCollatorForSeq2Seq(tokenizer, padding=True, label_pad_token_id=-100)
+def reply_perplexity(model, tokenizer, items: list[dict], use_adapter: bool) -> float:
+    """Perplexity of the gold replies only. One example at a time, and only the reply
+    positions are converted to fp32: the full [seq, 128k-vocab] logits of a batch do not
+    fit next to the model on a 6 GB GPU."""
     ctx = model.disable_adapter() if not use_adapter else nullcontext()
     nll, count = 0.0, 0
     model.eval()
     with ctx:
-        for i in range(0, len(items), bs):
-            batch = {k: v.to(model.device) for k, v in collate(items[i : i + bs]).items()}
-            logits = model(
-                input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
-            ).logits.float()
-            shift_logits, shift_labels = logits[:, :-1], batch["labels"][:, 1:]
-            loss = torch.nn.functional.cross_entropy(
-                shift_logits.reshape(-1, shift_logits.size(-1)),
-                shift_labels.reshape(-1),
-                ignore_index=-100,
-                reduction="sum",
-            )
-            nll += loss.item()
-            count += (shift_labels != -100).sum().item()
+        for item in items:
+            ids = torch.tensor([item["input_ids"]], device=model.device)
+            labels = torch.tensor(item["labels"][1:], device=model.device)
+            keep = labels != -100
+            logits = model(input_ids=ids).logits[0, :-1][keep].float()
+            nll += torch.nn.functional.cross_entropy(logits, labels[keep], reduction="sum").item()
+            count += int(keep.sum())
     return math.exp(nll / count)
 
 
@@ -178,6 +173,11 @@ def main() -> None:
             str(args.out_dir), max_seq_length=args.max_len, load_in_4bit=True
         )
         train_minutes = None
+        log = args.out_dir / "train_log.json"
+        if log.exists():
+            history = json.loads(log.read_text())["log_history"]
+            runtime = next((h["train_runtime"] for h in history if "train_runtime" in h), None)
+            train_minutes = round(runtime / 60, 1) if runtime else None
     else:
         model, tokenizer = FastLanguageModel.from_pretrained(
             args.base, max_seq_length=args.max_len, load_in_4bit=True

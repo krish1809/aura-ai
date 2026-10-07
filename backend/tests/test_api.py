@@ -196,3 +196,30 @@ def test_metrics_report_reads_trained_artifacts(client):
     if models["strategy"]["trained"]:  # trained in this checkout
         labels = {m["label"] for m in models["strategy"]["metrics"]}
         assert "Accuracy (8 strategies)" in labels
+
+
+def test_back_to_back_messages_are_queued_not_dropped(client, user):
+    """Regression: a message sent right after 'done' used to be rejected - even a crisis message."""
+    conv = client.post("/api/conversations", json={}).json()
+    token = client.cookies.get("aura_session")
+    texts = ["hey", "I'm stressed about work", "I want to end my life"]
+    with client.websocket_connect(f"/api/ws/conversations/{conv['id']}?token={token}") as ws:
+        assert ws.receive_json()["type"] == "ready"
+        for t in texts:
+            ws.send_json({"type": "message", "text": t, "audio": None})
+        done, events = [], []
+        while len(done) < len(texts):
+            e = ws.receive_json()
+            events.append(e["type"])
+            assert e["type"] != "error", e
+            if e["type"] == "done":
+                done.append(e["message"])
+    assert "safety" in events
+    assert done[-1]["meta"]["model"] == "safety-template"
+
+
+def test_identity_question_gets_the_honest_template(client, user):
+    conv = client.post("/api/conversations", json={}).json()
+    events = chat_turn(client, conv["id"], "are you a real person?")
+    reply = events[-1]["message"]
+    assert "not a person" in reply["content"] and reply["meta"]["model"] == "honesty-template"

@@ -74,7 +74,8 @@ def preprocess(gray48: np.ndarray) -> torch.Tensor:
 
 
 class FaceDetector:
-    """YuNet (OpenCV DNN) when its 230 KB ONNX file is available, Haar cascade otherwise."""
+    """YuNet (OpenCV DNN, 230 KB ONNX) and, on OpenCV 4.x, a Haar cascade fallback.
+    OpenCV 5 dropped the Haar classifier, so there YuNet is required."""
 
     def __init__(self, model_dir: Path | None = None):
         import cv2
@@ -87,9 +88,13 @@ class FaceDetector:
                 urllib.request.urlretrieve(YUNET_URL, onnx)
         if onnx.exists():
             self.yunet = cv2.FaceDetectorYN.create(str(onnx), "", (320, 320), 0.7, 0.3, 5000)
-        self.haar = cv2.CascadeClassifier(
-            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        )
+        self.haar = None
+        if hasattr(cv2, "CascadeClassifier"):
+            self.haar = cv2.CascadeClassifier(
+                cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+            )
+        if self.yunet is None and self.haar is None:
+            raise RuntimeError(f"no face detector: download {YUNET_URL} to {onnx}")
 
     def largest_face(self, bgr: np.ndarray) -> tuple[int, int, int, int] | None:
         h, w = bgr.shape[:2]
@@ -99,7 +104,7 @@ class FaceDetector:
             _, faces = self.yunet.detect(bgr)
             if faces is not None:
                 boxes = [tuple(int(v) for v in f[:4]) for f in faces]
-        else:
+        elif self.haar is not None:
             gray = self.cv2.cvtColor(bgr, self.cv2.COLOR_BGR2GRAY)
             boxes = [
                 tuple(int(v) for v in b)

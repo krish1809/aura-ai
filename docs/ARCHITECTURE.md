@@ -15,7 +15,7 @@
 | Component | Full mode (`AURA_ML_MODE=full`) | Lite mode (default) |
 |---|---|---|
 | Text emotion | DistilRoBERTa (j-hartmann) | TF-IDF model trained on GoEmotions, then keyword lexicon |
-| Cause | Aura RoBERTa ECE model | the silver-label rules |
+| Cause | Aura RoBERTa ECE model, rules as backup when it finds nothing | the silver-label rules |
 | Entities | spaCy + relation patterns | relation patterns ("my mom", "my boss") |
 | Topic, strategy | scikit-learn models | same |
 | Speech-to-text, voice emotion, face | Whisper, wav2vec2, YuNet + ResNet-18 | unavailable (the UI disables mic/camera) |
@@ -33,12 +33,18 @@ client ──{"type":"message", text, audio?}──▶  WebSocket /api/ws/conver
   3. analyze_turn (perception thread):
        safety check · text/voice/face emotion → fusion · cause · entities · topic · strategy
   4. store user message + analysis            ─▶ {"type":"analysis", message}
-  5. crisis?  yes → fixed safe reply           ─▶ {"type":"safety", resources} + tokens
-              no  → build prompt (aura_ml.prompts) → stream LLM (LLM thread) ─▶ {"type":"token"}…
+  5. crisis?            → fixed safe reply + helplines  ─▶ {"type":"safety", resources} + tokens
+     "are you real?"     → fixed honest answer
+     otherwise           → build prompt (aura_ml.prompts) → stream LLM (LLM thread) ─▶ {"type":"token"}…
+                           → drop any sentence claiming a human life before storing
   6. store assistant message (strategy, model)  ─▶ {"type":"done", message, conversation}
   7. background task (survives disconnects): update knowledge graph; every 4 user turns
      re-summarise the conversation with the base model (adapter off) into the user's notes
 ```
+
+Messages on one connection are processed strictly in order. One sent while Aura is still replying waits instead of
+being rejected, and a crisis message is accepted even when the queue is full. At start-up every model is run once
+(warm-up), so the first real message doesn't pay for CUDA initialisation.
 
 Webcam frames arrive separately (`{"type":"frame"}`, about one per second while the camera is on). They are analysed
 on the perception thread, smoothed over the last 8 seconds, and returned as `{"type":"face"}` for the live preview.
