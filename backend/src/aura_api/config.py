@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     cookie_name: str = "aura_session"
     cookie_secure: bool = False
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    login_attempts_per_5min: int = 10
+    registrations_per_hour: int = 10
 
     # ML
     ml_mode: Literal["lite", "full"] = (

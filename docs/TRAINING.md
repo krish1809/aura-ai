@@ -85,7 +85,9 @@ To serve the model with Ollama instead of transformers, merge and export it to G
 (`model.save_pretrained_gguf(...)`), create an Ollama model named `aura`, and run the backend with
 `AURA_LLM_PROVIDER=openai`.
 
-## 6. Publishing trained models
+## 6. Using the published models instead of training
 
-The GPU artifacts are too large for git. Push each `artifacts/<model>` folder to a Hugging Face Hub model repo
-(`huggingface-cli upload <user>/aura-<model> artifacts/<model>`) and document the download step for deployments.
+The trained GPU models are published as assets of the [`models-v1` release](https://github.com/krish1809/aura-ai/releases/tag/models-v1)
+(about 1 GB, checksummed). `make models` (or `scripts/download_models.sh ece llm` for a subset) downloads and unpacks
+them into `artifacts/`. To publish a new version, tar each `artifacts/<model>` folder, write `SHA256SUMS`, and attach
+the files to a new release tag (`AURA_MODELS_TAG` selects which release the script uses).

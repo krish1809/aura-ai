@@ -118,10 +118,12 @@ make test     # 48 backend + ML tests
 
 ### Full mode (trained GPU models)
 
-Train or download the models ([docs/TRAINING.md](docs/TRAINING.md)), then:
+Needs an NVIDIA GPU with 6 GB or more. Download the trained models (or train them yourself:
+[docs/TRAINING.md](docs/TRAINING.md)), then:
 
 ```bash
 uv sync --extra inference                 # torch, transformers, peft, ...
+make models                               # ~1 GB from the models-v1 release
 AURA_ML_MODE=full AURA_LLM_PROVIDER=local make api
 ```
 

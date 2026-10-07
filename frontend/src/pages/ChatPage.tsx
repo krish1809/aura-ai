@@ -12,60 +12,10 @@ import { IconButton, Orb } from '../components/ui'
 import { ApiError, api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useConversations } from '../lib/conversations'
-import type { Capabilities, CrisisResource, FaceUpdate, Message, ServerEvent } from '../lib/types'
+import { initialChatState as initial, chatReducer as reducer } from '../lib/chatState'
+import type { Message, ServerEvent } from '../lib/types'
 import { useCamera } from '../lib/useCamera'
 import { useChatSocket } from '../lib/useChatSocket'
-
-interface State {
-  messages: Message[]
-  loading: boolean
-  pending: { content: string; modality: 'text' | 'voice' } | null
-  streaming: string | null
-  error: string | null
-  crisis: CrisisResource[] | null
-  capabilities: Capabilities | null
-  face: FaceUpdate | null
-}
-
-type Action =
-  | { type: 'loaded'; messages: Message[] }
-  | { type: 'sending'; content: string; modality: 'text' | 'voice' }
-  | { type: 'dismiss-crisis' }
-  | { type: 'clear-error' }
-  | ServerEvent
-
-const initial: State = { messages: [], loading: false, pending: null, streaming: null, error: null, crisis: null, capabilities: null, face: null }
-
-function reducer(s: State, a: Action): State {
-  switch (a.type) {
-    case 'loaded':
-      return { ...s, loading: false, messages: a.messages }
-    case 'sending':
-      return { ...s, error: null, pending: { content: a.content, modality: a.modality }, streaming: null }
-    case 'ready':
-      return { ...s, capabilities: a.capabilities ?? s.capabilities }
-    case 'transcript':
-      return s.pending ? { ...s, pending: { ...s.pending, content: a.text } } : s
-    case 'analysis':
-      return { ...s, messages: [...s.messages, a.message], pending: null, streaming: '' }
-    case 'safety':
-      return { ...s, crisis: a.resources }
-    case 'token':
-      return { ...s, streaming: (s.streaming ?? '') + a.text }
-    case 'done':
-      return { ...s, messages: [...s.messages, a.message], streaming: null }
-    case 'error':
-      return { ...s, error: a.detail, pending: null, streaming: null }
-    case 'face':
-      return { ...s, face: { frame: a.frame, smoothed: a.smoothed } }
-    case 'dismiss-crisis':
-      return { ...s, crisis: null }
-    case 'clear-error':
-      return { ...s, error: null }
-    default:
-      return s
-  }
-}
 
 const SUGGESTIONS = [
   'I’ve been really stressed about my exams',

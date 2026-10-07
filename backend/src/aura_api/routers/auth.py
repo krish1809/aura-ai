@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import delete, select
 
 from aura_api.deps import CurrentUser, Session, SettingsDep
 from aura_api.models import GraphEdge, GraphNode, User, UserMemory
+from aura_api.ratelimit import client_ip
 from aura_api.schemas import LoginIn, RegisterIn, UserOut
 from aura_api.security import create_token, hash_password, verify_password
 
@@ -25,8 +26,11 @@ def _set_session_cookie(response: Response, user_id: str, settings) -> None:
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 async def register(
-    body: RegisterIn, response: Response, session: Session, settings: SettingsDep
+    body: RegisterIn, request: Request, response: Response, session: Session, settings: SettingsDep
 ) -> User:
+    limiter, key = request.app.state.register_limiter, client_ip(request)
+    limiter.check(key)
+    limiter.record(key)
     email = body.email.lower()
     if await session.scalar(select(User).where(User.email == email)):
         raise HTTPException(status.HTTP_409_CONFLICT, "An account with this email already exists")
@@ -38,10 +42,18 @@ async def register(
 
 
 @router.post("/login", response_model=UserOut)
-async def login(body: LoginIn, response: Response, session: Session, settings: SettingsDep) -> User:
+async def login(
+    body: LoginIn, request: Request, response: Response, session: Session, settings: SettingsDep
+) -> User:
+    # Only failed attempts count, per email+IP, so a password-guessing run is slowed down
+    # without locking out the account owner from their own network.
+    limiter, key = request.app.state.login_limiter, f"{client_ip(request)}|{body.email.lower()}"
+    limiter.check(key)
     user = await session.scalar(select(User).where(User.email == body.email.lower()))
     if user is None or not verify_password(body.password, user.password_hash):
+        limiter.record(key)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect email or password")
+    limiter.reset(key)
     _set_session_cookie(response, user.id, settings)
     return user
 

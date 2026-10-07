@@ -1,8 +1,11 @@
-.PHONY: setup api web test lint format build docker train-cpu train-gpu
+.PHONY: setup models api web test lint format build docker train-cpu train-gpu
 
 setup:            ## install Python workspace + frontend dependencies
 	uv sync
 	cd frontend && npm install
+
+models:           ## download the trained GPU models from the GitHub release (full mode)
+	scripts/download_models.sh
 
 api:              ## backend on :8000 (lite mode, SQLite)
 	cd backend && uv run uvicorn aura_api.main:app --reload --port 8000

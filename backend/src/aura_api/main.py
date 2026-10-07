@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from aura_api import __version__
 from aura_api.config import DEFAULT_SECRET, Settings, get_settings
 from aura_api.db import Database
+from aura_api.ratelimit import SlidingWindow
 from aura_api.routers import auth, conversations, insights, memory, system, ws
 from aura_api.services.chat import ChatOrchestrator
 from aura_api.services.ml import MLService
@@ -34,6 +35,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.settings = settings
+        app.state.login_limiter = SlidingWindow(settings.login_attempts_per_5min, 300)
+        app.state.register_limiter = SlidingWindow(settings.registrations_per_hour, 3600)
         app.state.db = Database(settings.database_url)
         if settings.auto_create_tables:
             await app.state.db.create_all()

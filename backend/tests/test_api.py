@@ -223,3 +223,40 @@ def test_identity_question_gets_the_honest_template(client, user):
     events = chat_turn(client, conv["id"], "are you a real person?")
     reply = events[-1]["message"]
     assert "not a person" in reply["content"] and reply["meta"]["model"] == "honesty-template"
+
+
+def test_login_is_rate_limited_per_email_and_ip(client, user):
+    for _ in range(10):
+        r = client.post(
+            "/api/auth/login", json={"email": user["email"], "password": "wrong password"}
+        )
+        assert r.status_code == 401
+    r = client.post("/api/auth/login", json={"email": user["email"], "password": "correct horse"})
+    assert r.status_code == 429 and int(r.headers["Retry-After"]) > 0
+    # other accounts are not affected
+    register(client, email="someone@example.com")
+    client.post("/api/auth/logout")
+    assert (
+        client.post(
+            "/api/auth/login", json={"email": "someone@example.com", "password": "correct horse"}
+        ).status_code
+        == 200
+    )
+
+
+def test_successful_login_resets_the_counter(client, user):
+    for _ in range(9):
+        client.post("/api/auth/login", json={"email": user["email"], "password": "wrong password"})
+    assert (
+        client.post(
+            "/api/auth/login", json={"email": user["email"], "password": "correct horse"}
+        ).status_code
+        == 200
+    )
+    for _ in range(9):
+        assert (
+            client.post(
+                "/api/auth/login", json={"email": user["email"], "password": "nope nope"}
+            ).status_code
+            == 401
+        )
