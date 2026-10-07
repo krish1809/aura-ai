@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { CrisisCard } from '../components/chat/CrisisCard'
+import { useDialog } from '../components/Dialog'
 import { Button, Card } from '../components/ui'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -53,6 +54,7 @@ export function AboutPage() {
   const [resources, setResources] = useState<CrisisResource[]>([])
   const { deleteAccount } = useAuth()
   const navigate = useNavigate()
+  const dialog = useDialog()
 
   useEffect(() => {
     api.models().then(setStatus, () => setStatus(null))
@@ -61,7 +63,13 @@ export function AboutPage() {
   }, [])
 
   const removeAccount = async () => {
-    if (!confirm('Permanently delete your account, conversations and everything Aura remembers? This cannot be undone.')) return
+    const ok = await dialog.confirm({
+      title: 'Delete your account?',
+      body: 'Your account, conversations and everything Aura remembers will be permanently deleted. This cannot be undone.',
+      confirmLabel: 'Delete my account',
+      danger: true,
+    })
+    if (!ok) return
     await deleteAccount()
     navigate('/login')
   }

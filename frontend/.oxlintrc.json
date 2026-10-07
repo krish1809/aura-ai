@@ -13,7 +13,8 @@
         "allowConstantExport": true,
         "allowExportNames": [
           "useAuth",
-          "useConversations"
+          "useConversations",
+          "useDialog"
         ]
       }
     ]

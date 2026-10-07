@@ -20,6 +20,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../lib/auth'
 import { ConversationsProvider, useConversations } from '../lib/conversations'
 import { useTheme, type Theme } from '../lib/theme'
+import { useDialog } from './Dialog'
 import { IconButton, Logo } from './ui'
 
 const NAV = [
@@ -35,6 +36,7 @@ function relativeDay(iso: string): string {
 
 function ConversationList({ onNavigate }: { onNavigate: () => void }) {
   const { conversations, remove, rename } = useConversations()
+  const dialog = useDialog()
   const activeId = useLocation().pathname.match(/^\/chat\/([^/]+)/)?.[1]
   const navigate = useNavigate()
 
@@ -67,13 +69,19 @@ function ConversationList({ onNavigate }: { onNavigate: () => void }) {
                 >
                   {c.title}
                 </NavLink>
-                <span className="absolute top-1/2 right-1 hidden -translate-y-1/2 gap-0.5 group-focus-within:flex group-hover:flex">
+                <span
+                  className={clsx(
+                    'absolute top-1/2 right-1 -translate-y-1/2 gap-0.5',
+                    // touch screens have no hover: always show there, and on the open conversation
+                    activeId === c.id ? 'flex' : 'hidden group-focus-within:flex group-hover:flex [@media(hover:none)]:flex',
+                  )}
+                >
                   <button
                     className="rounded-md p-1.5 text-ink-3 hover:bg-surface-3 hover:text-ink"
                     aria-label={`Rename ${c.title}`}
-                    onClick={() => {
-                      const title = prompt('Rename conversation', c.title)?.trim()
-                      if (title) void rename(c.id, title)
+                    onClick={async () => {
+                      const title = await dialog.prompt({ title: 'Rename conversation', label: 'Title', initial: c.title, confirmLabel: 'Rename' })
+                      if (title) await rename(c.id, title)
                     }}
                   >
                     <Pencil size={14} />
@@ -82,7 +90,13 @@ function ConversationList({ onNavigate }: { onNavigate: () => void }) {
                     className="rounded-md p-1.5 text-ink-3 hover:bg-surface-3 hover:text-critical"
                     aria-label={`Delete ${c.title}`}
                     onClick={async () => {
-                      if (!confirm('Delete this conversation? This cannot be undone.')) return
+                      const ok = await dialog.confirm({
+                        title: 'Delete this conversation?',
+                        body: 'The messages and what Aura noticed in them will be deleted. This cannot be undone.',
+                        confirmLabel: 'Delete',
+                        danger: true,
+                      })
+                      if (!ok) return
                       await remove(c.id)
                       if (activeId === c.id) navigate('/chat')
                     }}

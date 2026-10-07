@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router'
 
 import { AppShell } from './components/AppShell'
+import { DialogProvider } from './components/Dialog'
 import { AuthProvider, RequireAuth } from './lib/auth'
 import { AuthPage } from './pages/AuthPage'
 import { ChatPage } from './pages/ChatPage'
@@ -25,24 +26,26 @@ export function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<AuthPage mode="login" />} />
-          <Route path="/register" element={<AuthPage mode="register" />} />
-          <Route
-            element={
-              <RequireAuth>
-                <AppShell />
-              </RequireAuth>
-            }
-          >
-            <Route path="/chat" element={<ChatRoute />} />
-            <Route path="/chat/:id" element={<ChatRoute />} />
-            <Route path="/insights" element={page(<InsightsPage />)} />
-            <Route path="/memory" element={page(<MemoryPage />)} />
-            <Route path="/about" element={page(<AboutPage />)} />
-          </Route>
-          <Route path="*" element={<Navigate to="/chat" replace />} />
-        </Routes>
+        <DialogProvider>
+          <Routes>
+            <Route path="/login" element={<AuthPage mode="login" />} />
+            <Route path="/register" element={<AuthPage mode="register" />} />
+            <Route
+              element={
+                <RequireAuth>
+                  <AppShell />
+                </RequireAuth>
+              }
+            >
+              <Route path="/chat" element={<ChatRoute />} />
+              <Route path="/chat/:id" element={<ChatRoute />} />
+              <Route path="/insights" element={page(<InsightsPage />)} />
+              <Route path="/memory" element={page(<MemoryPage />)} />
+              <Route path="/about" element={page(<AboutPage />)} />
+            </Route>
+            <Route path="*" element={<Navigate to="/chat" replace />} />
+          </Routes>
+        </DialogProvider>
       </AuthProvider>
     </BrowserRouter>
   )

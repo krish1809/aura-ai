@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ForceGraph2D, { type NodeObject } from 'react-force-graph-2d'
 
+import { useDialog } from '../components/Dialog'
 import { Button, Card } from '../components/ui'
 import { api } from '../lib/api'
 import { EMOTION_LABEL, TOPIC_LABEL } from '../lib/emotions'
@@ -74,6 +75,7 @@ export function MemoryPage() {
   const [focus, setFocus] = useState<GraphNode | null>(null)
   const [box, width] = useSize<HTMLDivElement>()
   const palette = usePalette()
+  const dialog = useDialog()
 
   const load = useCallback(async () => {
     const [g, n] = await Promise.all([api.graph(), api.notes()])
@@ -100,7 +102,13 @@ export function MemoryPage() {
     : []
 
   const forget = async () => {
-    if (!confirm('Erase everything Aura remembers about you (notes and graph)? Your chat history is kept.')) return
+    const ok = await dialog.confirm({
+      title: 'Forget everything?',
+      body: 'This erases Aura’s notes and your knowledge graph. Your chat history is kept.',
+      confirmLabel: 'Forget everything',
+      danger: true,
+    })
+    if (!ok) return
     await api.forget()
     setFocus(null)
     await load()
