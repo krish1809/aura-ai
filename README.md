@@ -84,10 +84,10 @@ app's *How Aura works* page shows them live.
 | Text emotion (CPU, TF-IDF + LR) | GoEmotions → 7 emotions | **64.2%** acc · **58.7%** macro-F1 | keyword lexicon: 30.8% macro-F1 |
 | Support-strategy predictor | ESConv, 8 strategies | **31.0%** acc · 22.8% macro-F1 | majority 16.5% · repeat-previous 22.0% |
 | Topic classifier | ESConv, 6 topics | **68.6%** acc · 62.5% macro-F1 (76% after 5 user turns) | n/a |
-| Emotion-cause extraction (RoBERTa) | ESConv, silver labels | *pending GPU training* | n/a |
-| Voice emotion (wav2vec2) | RAVDESS, unseen speakers | *pending GPU training* | n/a |
-| Facial emotion (ResNet-18) | FER2013 PrivateTest | *pending GPU training* | n/a |
-| Reply LLM (Llama 3.2 3B + LoRA) | ESConv test replies | *pending GPU training* (perplexity vs base) | base model |
+| Emotion-cause extraction (RoBERTa) | ESConv, silver labels | **72.7%** span F1 · **96.2%** has-cause acc | 2025 model: 6.9% has-cause acc |
+| Voice emotion (wav2vec2) | RAVDESS, 4 unseen speakers | **72.9%** acc · 70.2% macro-F1 | 2025 model: 44.6% acc |
+| Facial emotion (ResNet-18) | FER2013 PrivateTest | **72.0%** acc · 70.7% macro-F1 | human ≈ 65% |
+| Reply LLM (Llama 3.2 3B + LoRA) | ESConv test replies | *training in progress* (perplexity vs base) | base model |
 
 Strategy prediction on ESConv is a hard task: published systems report roughly 28–32% accuracy. See
 [docs/RESULTS.md](docs/RESULTS.md) for per-class results and how this version differs from the 2025 prototype.

@@ -67,17 +67,72 @@ TF-IDF over everything the user has said so far → logistic regression.
 Per-topic F1: job crisis 0.74, breakup 0.74, academic pressure 0.72, friends 0.71, ongoing depression 0.66, other
 (rare topics such as sleep problems or bullying) 0.18.
 
-## Pending GPU training
+## Emotion-cause extraction (RoBERTa, two heads)
 
-These models' code and evaluation are in place (see [TRAINING.md](TRAINING.md)), but they have not been trained in
-this version yet:
+roberta-base with a has-cause head and a BIO span head, trained for 8 epochs (2.6 minutes on an RTX 4050). The
+checkpoint and the has-cause threshold are both chosen on validation. Test set: 2,217 seeker messages from unseen
+conversations, 154 of them with an explicit cause (the natural ratio). Labels are the silver rules described in
+[TRAINING.md](TRAINING.md), so these scores measure how well the model reproduces and generalises those rules.
 
-| Model | Protocol | Reported metric |
+| | Span F1 (overlap) | Span F1 (exact) | Has-cause accuracy | Has-cause F1 |
+|---|---|---|---|---|
+| **Aura model, calibrated threshold (0.98)** | **72.7%** | **61.5%** | **96.2%** | **77.7%** |
+| Aura model, default threshold 0.5 | 70.2% | 57.6% | 95.1% | 73.0% |
+| 2025 model on the same test set | 5.0% | 0.0% | 6.9% | 13.0% |
+
+The 2025 model was trained without any negative examples, so it says "this message has a cause" for every message
+(recall 100%, precision 7%). Its span scores are not a like-for-like comparison, because it learned different silver
+labels. The new model's recall is high (89% overlap recall) and its precision is lower (61%): it often finds causes
+the rules missed or marks slightly longer spans.
+
+## Voice emotion (wav2vec2, RAVDESS)
+
+`superb/wav2vec2-base-superb-er` fine-tuned with the CNN feature encoder frozen, for 20 epochs (6 minutes).
+Speaker-independent split: the 4 test actors (2 female, 2 male) are never heard during training.
+
+| | Accuracy (8 classes) | Macro-F1 |
 |---|---|---|
-| Emotion-cause extraction (RoBERTa, two heads) | ESConv test split, silver labels | span F1 (overlap & exact), has-cause F1 |
-| Voice emotion (wav2vec2) | RAVDESS, 4 unseen test speakers | accuracy, macro-F1, confusion matrix |
-| Facial emotion (ResNet-18) | FER2013 PrivateTest | accuracy, macro-F1 |
-| Reply LLM (Llama 3.2 3B + LoRA) | ESConv test replies | perplexity vs base, ROUGE-L, distinct-n |
+| **Aura model** | **72.9%** | **70.2%** |
+| 2025 model on the same test speakers | 44.6% | 29.5% |
+
+| Emotion | Precision | Recall | F1 | Clips |
+|---|---|---|---|---|
+| angry | 0.86 | 0.94 | 0.90 | 32 |
+| disgust | 0.76 | 0.91 | 0.83 | 32 |
+| calm | 0.69 | 0.97 | 0.81 | 32 |
+| surprised | 0.80 | 0.75 | 0.77 | 32 |
+| fearful | 0.90 | 0.56 | 0.69 | 32 |
+| sad | 0.69 | 0.56 | 0.62 | 32 |
+| happy | 0.58 | 0.59 | 0.58 | 32 |
+| neutral | 0.46 | 0.38 | 0.41 | 16 |
+
+Neutral is most often confused with calm, which the app merges anyway. RAVDESS is acted speech, so expect lower
+accuracy on spontaneous microphone audio; this is why voice gets a 0.25 weight in fusion.
+
+## Facial emotion (ResNet-18, FER2013)
+
+ImageNet-pretrained ResNet-18 at 96×96, GPU augmentation, label smoothing, 30 epochs (5 minutes). The model is chosen
+on PublicTest and reported once on PrivateTest (3,589 faces), with horizontal-flip test-time augmentation.
+
+| | Accuracy (7 classes) | Macro-F1 |
+|---|---|---|
+| **Aura model** | **72.0%** | **70.7%** |
+| Human agreement on FER2013 (reported) | ~65% | |
+| Best published models (approx.) | 73–76% | |
+
+| Emotion | Precision | Recall | F1 | Faces |
+|---|---|---|---|---|
+| happy | 0.90 | 0.90 | 0.90 | 879 |
+| surprise | 0.81 | 0.84 | 0.83 | 416 |
+| disgust | 0.76 | 0.67 | 0.71 | 55 |
+| neutral | 0.71 | 0.70 | 0.70 | 626 |
+| angry | 0.63 | 0.66 | 0.64 | 491 |
+| sad | 0.58 | 0.61 | 0.59 | 594 |
+| fear | 0.61 | 0.54 | 0.57 | 528 |
+
+## Reply LLM (Llama 3.2 3B + LoRA)
+
+*Training in progress.* Results will be test-reply perplexity (base vs fine-tuned), ROUGE-L and distinct-n.
 
 ## Differences from the 2025 prototype
 
