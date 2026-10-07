@@ -9,6 +9,7 @@ still be loaded and benchmarked; v1 used the same O=0, B=1, I=2 tag ids.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -103,9 +104,15 @@ class EmotionCauseExtractor:
         self.tokenizer = AutoTokenizer.from_pretrained(str(model_dir), use_fast=True)
         self.model = RoBERTaForECE.from_pretrained(str(model_dir)).to(self.device).eval()
         self.max_length = max_length
+        # decision threshold calibrated on validation data by train_ece (default 0.5)
+        cfg = Path(model_dir) / "inference.json"
+        self.threshold = json.loads(cfg.read_text())["clause_threshold"] if cfg.exists() else 0.5
 
     @torch.inference_mode()
-    def predict_batch(self, texts: list[str], threshold: float = 0.5) -> list[ECEPrediction]:
+    def predict_batch(
+        self, texts: list[str], threshold: float | None = None
+    ) -> list[ECEPrediction]:
+        threshold = self.threshold if threshold is None else threshold
         enc = self.tokenizer(
             texts,
             truncation=True,
@@ -131,5 +138,5 @@ class EmotionCauseExtractor:
             results.append(ECEPrediction(bool(causes), clause_p[i], causes))
         return results
 
-    def predict(self, text: str, threshold: float = 0.5) -> ECEPrediction:
+    def predict(self, text: str, threshold: float | None = None) -> ECEPrediction:
         return self.predict_batch([text], threshold)[0]

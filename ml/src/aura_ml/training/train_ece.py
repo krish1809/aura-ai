@@ -10,6 +10,7 @@ scored once on the test split. Results land in artifacts/ece/metrics.json.
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import torch
@@ -100,6 +101,19 @@ def evaluate(model, loader, dev, threshold: float = 0.5) -> dict:
     }
 
 
+THRESHOLDS = (0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.93, 0.95, 0.97, 0.98, 0.99)
+
+
+def calibrate(model, val_loader, dev) -> tuple[float, dict]:
+    """Pick the has-cause threshold that maximises validation span-overlap F1.
+
+    Training uses a 1:2 cause/no-cause ratio but real conversations are closer to
+    1:12, so the default 0.5 threshold over-predicts causes."""
+    sweep = {t: evaluate(model, val_loader, dev, threshold=t) for t in THRESHOLDS}
+    best = max(sweep, key=lambda t: sweep[t]["span_overlap"]["f1"])
+    return best, {str(t): r["span_overlap"]["f1"] for t, r in sweep.items()}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -114,6 +128,11 @@ def main() -> None:
     ap.add_argument("--warmup", type=float, default=0.1)
     ap.add_argument(
         "--compare-legacy", type=Path, default=ARTIFACTS_DIR / "legacy" / "ece_roberta_v1"
+    )
+    ap.add_argument(
+        "--calibrate-only",
+        action="store_true",
+        help="skip training; re-run threshold calibration and test on the saved model",
     )
     args = ap.parse_args()
 
@@ -166,8 +185,11 @@ def main() -> None:
     sched = get_linear_schedule_with_warmup(optim, int(args.warmup * total), total)
 
     best_f1, history = -1.0, []
+    if args.calibrate_only:
+        previous = json.loads((args.out_dir / "metrics.json").read_text())
+        best_f1, history = previous["best_val_span_overlap_f1"], previous["history"]
     with Timer() as timer:
-        for epoch in range(1, args.epochs + 1):
+        for epoch in range(1, 0 if args.calibrate_only else args.epochs + 1):
             model.train()
             running = 0.0
             for batch in tqdm(train_loader, desc=f"epoch {epoch}", leave=False):
@@ -198,13 +220,20 @@ def main() -> None:
                 tokenizer.save_pretrained(args.out_dir)
 
     best = RoBERTaForECE.from_pretrained(args.out_dir).to(dev)
+    threshold, sweep = calibrate(best, val_loader, dev)
+    write_json(args.out_dir / "inference.json", {"clause_threshold": threshold})
     report = {
         "model": "RoBERTaForECE (roberta-base, clause head + BIO span head)",
         "data": "ESConv seeker turns, silver labels from aura_ml.data.causes",
         "hyperparameters": vars(args) | {"token_class_weights": class_weights.tolist()},
-        "train_minutes": round(timer.seconds / 60, 2),
+        "train_minutes": previous["train_minutes"]
+        if args.calibrate_only
+        else round(timer.seconds / 60, 2),
         "best_val_span_overlap_f1": best_f1,
-        "test": evaluate(best, test_loader, dev),
+        "clause_threshold": threshold,
+        "threshold_sweep_val_overlap_f1": sweep,
+        "test": evaluate(best, test_loader, dev, threshold=threshold),
+        "test_at_threshold_0.5": evaluate(best, test_loader, dev, threshold=0.5),
         "history": history,
         "environment": environment(),
     }
@@ -214,7 +243,7 @@ def main() -> None:
     write_json(args.out_dir / "metrics.json", {k: v for k, v in report.items()})
     t = report["test"]
     print(
-        f"TEST overlap-F1={t['span_overlap']['f1']:.4f} exact-F1={t['span_exact']['f1']:.4f} "
+        f"TEST (threshold {threshold}) overlap-F1={t['span_overlap']['f1']:.4f} exact-F1={t['span_exact']['f1']:.4f} "
         f"clause-F1={t['clause']['f1']:.4f} clause-acc={t['clause']['accuracy']:.4f}"
     )
 

@@ -59,6 +59,10 @@ def load(cache: Path = CACHE) -> dict[str, tuple[np.ndarray, np.ndarray]]:
     return {s: (z[f"{s}_x"], z[f"{s}_y"]) for s in FILES}
 
 
-if __name__ == "__main__":
+def main() -> None:
     download()
     print(build_cache())
+
+
+if __name__ == "__main__":
+    main()

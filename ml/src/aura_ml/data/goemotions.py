@@ -122,8 +122,12 @@ def load(split: str, root: Path = GOEMOTIONS_DIR) -> tuple[list[str], list[str]]
     return texts, labels
 
 
-if __name__ == "__main__":
+def main() -> None:
     download()
-    for s in SPLITS:
-        t, y = load(s)
-        print(s, len(t))
+    for split in SPLITS:
+        texts, _ = load(split)
+        print(split, len(texts))
+
+
+if __name__ == "__main__":
+    main()

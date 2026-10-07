@@ -6,9 +6,20 @@ import json
 from pathlib import Path
 
 
+def _jsonable(o):
+    """Paths become strings, numpy/torch scalars become Python numbers."""
+    if isinstance(o, Path):
+        return str(o)
+    if getattr(o, "ndim", 0) > 0 and hasattr(o, "tolist"):
+        return o.tolist()
+    if hasattr(o, "item"):
+        return o.item()
+    return str(o)
+
+
 def write_json(path: Path, obj: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, indent=2, default=float))
+    path.write_text(json.dumps(obj, indent=2, default=_jsonable))
 
 
 def read_jsonl(path: Path) -> list[dict]:
