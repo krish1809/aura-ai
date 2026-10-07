@@ -42,3 +42,4 @@ outputs/
 .idea/
 .vscode/
 frontend/node_modules/
+frontend/e2e/media/

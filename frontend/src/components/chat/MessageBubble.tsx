@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Mic, Sparkles } from 'lucide-react'
+import { Camera, Mic, Sparkles } from 'lucide-react'
 
 import { STRATEGY_LABEL } from '../../lib/emotions'
 import type { Message } from '../../lib/types'
@@ -29,6 +29,16 @@ export function UserBubble({
       {message.analysis ? (
         <div className="flex items-center gap-1.5">
           {emotion && emotion.modalities.length > 0 && <EmotionChip emotion={emotion.emotion} />}
+          {emotion?.modalities.includes('voice') && (
+            <span className="inline-flex items-center gap-1 text-xs text-ink-3" title="Your tone of voice was part of this reading">
+              <Mic size={12} aria-hidden /> voice
+            </span>
+          )}
+          {emotion?.modalities.includes('face') && (
+            <span className="inline-flex items-center gap-1 text-xs text-ink-3" title="Your facial expression was part of this reading">
+              <Camera size={12} aria-hidden /> face
+            </span>
+          )}
           {onInspect && (
             <button
               onClick={onInspect}

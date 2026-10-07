@@ -14,7 +14,9 @@
         "allowExportNames": [
           "useAuth",
           "useConversations",
-          "useDialog"
+          "useDialog",
+          "useMedia",
+          "speak"
         ]
       }
     ]

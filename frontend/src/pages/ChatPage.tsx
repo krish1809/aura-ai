@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { PanelRightClose, PanelRightOpen, WifiOff } from 'lucide-react'
+import { Camera, Mic, PanelRightClose, PanelRightOpen, Volume2, VolumeX, WifiOff } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 
@@ -13,9 +13,11 @@ import { ApiError, api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useConversations } from '../lib/conversations'
 import { initialChatState as initial, chatReducer as reducer } from '../lib/chatState'
+import { speak, useMedia } from '../lib/media'
 import type { Message, ServerEvent } from '../lib/types'
 import { useCamera } from '../lib/useCamera'
 import { useChatSocket } from '../lib/useChatSocket'
+import { useVoiceRecorder } from '../lib/useVoiceRecorder'
 
 const SUGGESTIONS = [
   'I’ve been really stressed about my exams',
@@ -52,17 +54,21 @@ export function ChatPage() {
   const [state, dispatch] = useReducer(reducer, { ...initial, loading: !!id })
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [panelOpen, setPanelOpen] = usePanelPreference()
-  const [cameraOn, setCameraOn] = useState(false)
+  const media = useMedia()
   const scroller = useRef<HTMLDivElement>(null)
   const firstSent = useRef(false)
 
+  const { speakReplies } = media
   const onEvent = useCallback(
     (e: ServerEvent) => {
       dispatch(e)
-      if (e.type === 'done') upsertTitle(e.conversation.id, e.conversation.title)
+      if (e.type === 'done') {
+        upsertTitle(e.conversation.id, e.conversation.title)
+        if (speakReplies) speak(e.message.content)
+      }
       if (e.type === 'analysis') setSelectedId(e.message.id)
     },
-    [upsertTitle],
+    [upsertTitle, speakReplies],
   )
   const { status, send } = useChatSocket(id, onEvent)
 
@@ -123,8 +129,26 @@ export function ChatPage() {
     dispatch({ type: 'sending', content: payload.text ?? '', modality: payload.audio ? 'voice' : 'text' })
   }
 
+  const voice = useVoiceRecorder((audio) => void submit({ audio }))
+  const capabilities = state.capabilities ?? media.capabilities
+
+  // The camera is shared with the WebSocket of the open conversation, so turning it on
+  // from the start screen opens a conversation straight away and keeps the camera running.
+  const toggleCamera = async () => {
+    const on = !media.cameraOn
+    media.setCameraOn(on)
+    if (on && !id) {
+      try {
+        const conv = await api.createConversation()
+        navigate(`/chat/${conv.id}`)
+      } catch {
+        media.setCameraOn(false)
+        dispatch({ type: 'error', detail: 'Could not start a conversation. Is the server running?' })
+      }
+    }
+  }
   const sendFrame = useCallback((image: string) => send({ type: 'frame', image }), [send])
-  const { videoRef, error: cameraError } = useCamera(cameraOn && !!id, sendFrame)
+  const { videoRef, error: cameraError } = useCamera(media.cameraOn, sendFrame)
 
   const selected = useMemo(() => state.messages.find((m) => m.id === selectedId) ?? null, [state.messages, selectedId])
   const empty = !state.loading && state.messages.length === 0 && !state.pending
@@ -143,6 +167,21 @@ export function ChatPage() {
               <WifiOff size={12} aria-hidden /> {status === 'connecting' ? 'Connecting…' : 'Offline - retrying'}
             </span>
           )}
+          {media.canSpeak && (
+            <button
+              type="button"
+              onClick={() => media.setSpeakReplies(!media.speakReplies)}
+              aria-pressed={media.speakReplies}
+              title={media.speakReplies ? 'Stop reading replies aloud' : 'Read Aura’s replies aloud'}
+              className={clsx(
+                'inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm transition',
+                media.speakReplies ? 'bg-accent-soft text-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
+              )}
+            >
+              {media.speakReplies ? <Volume2 size={16} aria-hidden /> : <VolumeX size={16} aria-hidden />}
+              <span className="hidden sm:inline">{media.speakReplies ? 'Reading replies aloud' : 'Read replies aloud'}</span>
+            </button>
+          )}
           {!empty && (
             <IconButton label={panelOpen ? 'Hide what Aura noticed' : 'Show what Aura noticed'} onClick={() => setPanelOpen(!panelOpen)}>
               {panelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
@@ -150,67 +189,113 @@ export function ChatPage() {
           )}
         </div>
 
-        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 pt-4 pb-8">
-            {empty && (
-              <div className="flex flex-col items-center gap-6 pt-[8vh] text-center">
-                <Orb className="size-16" thinking />
-                <div className="space-y-2">
-                  <h1 className="font-display text-3xl font-semibold tracking-tight">Hi {user?.name?.split(' ')[0]}, how are you feeling today?</h1>
-                  <p className="text-ink-2">Talk, type or turn on your camera. Aura listens to how you feel, not just what you say.</p>
-                </div>
-                <div className="flex max-w-xl flex-wrap justify-center gap-2">
-                  {SUGGESTIONS.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => void submit({ text: s })}
-                      className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm text-ink-2 transition hover:border-accent/40 hover:text-ink"
-                    >
-                      {s}
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div ref={scroller} role="region" aria-label="Conversation" className="min-h-0 flex-1 overflow-y-auto">
+              <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 pt-4 pb-8">
+                {empty && (
+                  <div className="flex flex-col items-center gap-6 pt-[8vh] text-center">
+                    <Orb className="size-16" thinking />
+                    <div className="space-y-2">
+                      <h1 className="font-display text-3xl font-semibold tracking-tight">Hi {user?.name?.split(' ')[0]}, how are you feeling today?</h1>
+                      <p className="text-ink-2">Aura listens to how you feel, not just what you say.</p>
+                    </div>
+                    <div className="grid w-full max-w-xl gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => void (voice.recording ? voice.stopAndSend() : voice.start())}
+                        disabled={!capabilities?.voice || busy}
+                        className={clsx(
+                          'flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50',
+                          voice.recording ? 'border-critical bg-critical-soft' : 'border-line bg-surface hover:border-accent/50',
+                        )}
+                      >
+                        <span className={clsx('grid size-10 place-items-center rounded-full', voice.recording ? 'bg-critical text-white' : 'bg-accent text-accent-ink')}>
+                          <Mic size={20} aria-hidden />
+                        </span>
+                        <span className="font-semibold">{voice.recording ? `Listening… ${Math.floor(voice.seconds)}s - tap to send` : 'Talk to Aura'}</span>
+                        <span className="text-sm text-ink-2">Speak naturally. Aura hears your words and the emotion in your voice.</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void toggleCamera()}
+                        disabled={!capabilities?.face}
+                        aria-pressed={media.cameraOn}
+                        className="flex flex-col items-start gap-2 rounded-2xl border border-line bg-surface p-4 text-left transition hover:border-accent/50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <span className="grid size-10 place-items-center rounded-full bg-surface-3 text-ink">
+                          <Camera size={20} aria-hidden />
+                        </span>
+                        <span className="font-semibold">{media.cameraOn ? 'Camera is on' : 'Turn on camera'}</span>
+                        <span className="text-sm text-ink-2">Aura reads your facial expression live. Nothing is recorded or stored.</span>
+                      </button>
+                    </div>
+                    {capabilities && (!capabilities.voice || !capabilities.face) && (
+                      <p className="text-xs text-ink-3">Voice and camera need Aura’s full model setup - this server runs in lite mode.</p>
+                    )}
+                    {!capabilities && media.mode === null && <p className="text-xs text-ink-3">Checking what this server supports…</p>}
+                    <p className="pt-2 text-sm text-ink-3">…or type below. A few ways to start:</p>
+                    <div className="flex max-w-xl flex-wrap justify-center gap-2">
+                      {SUGGESTIONS.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => void submit({ text: s })}
+                          className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm text-ink-2 transition hover:border-accent/40 hover:text-ink"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {state.loading && <p className="text-center text-sm text-ink-3">Loading conversation…</p>}
+
+                {state.messages.map((m) =>
+                  m.role === 'user' ? (
+                    <UserBubble key={m.id} message={m} selected={panelOpen && m.id === selectedId} onInspect={() => inspect(m)} />
+                  ) : (
+                    <AssistantBubble key={m.id} content={m.content} strategy={m.meta?.strategy} />
+                  ),
+                )}
+                {state.pending && <UserBubble message={state.pending} />}
+                {state.crisis && <CrisisCard resources={state.crisis} onClose={() => dispatch({ type: 'dismiss-crisis' })} />}
+                {state.streaming !== null && <AssistantBubble content={state.streaming} streaming />}
+                {state.error && (
+                  <div role="alert" className="flex items-center justify-between gap-3 rounded-xl bg-warning-soft px-4 py-2.5 text-sm">
+                    <span>{state.error}</span>
+                    <button className="text-ink-2 underline" onClick={() => dispatch({ type: 'clear-error' })}>
+                      Dismiss
                     </button>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
-            )}
-            {state.loading && <p className="text-center text-sm text-ink-3">Loading conversation…</p>}
+            </div>
 
-            {state.messages.map((m) =>
-              m.role === 'user' ? (
-                <UserBubble key={m.id} message={m} selected={panelOpen && m.id === selectedId} onInspect={() => inspect(m)} />
-              ) : (
-                <AssistantBubble key={m.id} content={m.content} strategy={m.meta?.strategy} />
-              ),
-            )}
-            {state.pending && <UserBubble message={state.pending} />}
-            {state.crisis && <CrisisCard resources={state.crisis} onClose={() => dispatch({ type: 'dismiss-crisis' })} />}
-            {state.streaming !== null && <AssistantBubble content={state.streaming} streaming />}
-            {state.error && (
-              <div role="alert" className="flex items-center justify-between gap-3 rounded-xl bg-warning-soft px-4 py-2.5 text-sm">
-                <span>{state.error}</span>
-                <button className="text-ink-2 underline" onClick={() => dispatch({ type: 'clear-error' })}>
-                  Dismiss
-                </button>
-              </div>
-            )}
+            <div className="mx-auto w-full max-w-3xl px-4 pb-4">
+              <Composer
+                busy={busy || (!!id && status !== 'open')}
+                capabilities={capabilities}
+                cameraOn={media.cameraOn}
+                onToggleCamera={() => void toggleCamera()}
+                onSendText={(text) => void submit({ text })}
+                voice={voice}
+              />
+            </div>
+
           </div>
+          {/* the camera gets its own column so it never covers the conversation */}
+          {media.cameraOn && (
+            <aside className="order-first shrink-0 px-4 pt-2 md:order-last md:w-64 md:pt-0 md:pr-4 md:pl-0" aria-label="Camera">
+              <CameraPreview
+                videoRef={videoRef}
+                face={state.face}
+                error={cameraError}
+                connected={!!id && status === 'open'}
+                onClose={() => media.setCameraOn(false)}
+              />
+            </aside>
+          )}
         </div>
-
-        <div className="mx-auto w-full max-w-3xl px-4 pb-4">
-          <Composer
-            busy={busy || (!!id && status !== 'open')}
-            capabilities={state.capabilities}
-            cameraOn={cameraOn}
-            onToggleCamera={() => setCameraOn((v) => !v)}
-            onSendText={(text) => void submit({ text })}
-            onSendVoice={(audio) => void submit({ audio })}
-          />
-        </div>
-
-        {cameraOn && id && (
-          <div className="absolute right-4 bottom-32 z-10">
-            <CameraPreview videoRef={videoRef} face={state.face} error={cameraError} />
-          </div>
-        )}
       </div>
 
       {panelOpen && !empty && (

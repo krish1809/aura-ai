@@ -19,6 +19,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 
 import { useAuth } from '../lib/auth'
 import { ConversationsProvider, useConversations } from '../lib/conversations'
+import { MediaProvider } from '../lib/media'
 import { useTheme, type Theme } from '../lib/theme'
 import { useDialog } from './Dialog'
 import { IconButton, Logo } from './ui'
@@ -41,10 +42,11 @@ function ConversationList({ onNavigate }: { onNavigate: () => void }) {
   const navigate = useNavigate()
 
   if (conversations === null) return <p className="px-3 py-2 text-sm text-ink-3">Loading…</p>
-  if (conversations.length === 0) return <p className="px-3 py-2 text-sm text-ink-3">Your conversations will appear here.</p>
+  const visible = conversations.filter((c) => c.user_turns > 0 || c.id === activeId)
+  if (visible.length === 0) return <p className="px-3 py-2 text-sm text-ink-3">Your conversations will appear here.</p>
 
   const groups = new Map<string, typeof conversations>()
-  for (const c of conversations) {
+  for (const c of visible) {
     const day = relativeDay(c.updated_at)
     groups.set(day, [...(groups.get(day) ?? []), c])
   }
@@ -195,6 +197,7 @@ export function AppShell() {
 
   return (
     <ConversationsProvider>
+      <MediaProvider>
       <div className="flex h-full">
         <aside className="hidden w-72 shrink-0 border-r border-line bg-bg md:block">
           <Sidebar onNavigate={close} />
@@ -225,6 +228,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+      </MediaProvider>
     </ConversationsProvider>
   )
 }

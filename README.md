@@ -23,7 +23,7 @@ inspect and erase.
 
 ## Features
 
-- **Talk, type or show your face.** Whisper speech-to-text, a wav2vec2 voice-emotion model and a ResNet-18 facial-emotion model are fused with text emotion into one reading.
+- **Talk, type or show your face.** Whisper speech-to-text, a wav2vec2 voice-emotion model and a ResNet-18 facial-emotion model are fused with text emotion into one reading. Turn on *Read replies aloud* and Aura answers in a spoken voice too.
 - **Finds the cause.** A two-head RoBERTa model extracts the span in your message that explains the feeling, and Aura carries it through the conversation.
 - **Chooses how to help.** A strategy model picks one of the 8 ESConv support strategies (ask, reflect, reassure, suggest…) and conditions the LLM on it.
 - **Explains itself.** For every message you can see the fused emotion, each modality's view, the highlighted cause, the topic, the chosen strategy and its alternatives.
@@ -113,7 +113,10 @@ cd frontend && npm install && cd ..
 
 make api      # FastAPI on :8000 (SQLite, lite mode)
 make web      # Vite on :5173, proxies /api to :8000
-make test     # 48 backend + ML tests
+make test     # backend + ML tests and the frontend type-check
+cd frontend && npm test              # frontend unit tests
+# end-to-end voice + camera test in a real browser (Aura running in full mode on :8000):
+uv run python frontend/e2e/make_media.py && cd frontend && npm run e2e
 ```
 
 ### Full mode (trained GPU models)
