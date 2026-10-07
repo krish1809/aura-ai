@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Aura - one image serving the API and the built web app (lite mode: CPU only).
-# For the trained GPU models see docker/Dockerfile.gpu.
+# Full mode (trained GPU models) runs natively: see "Full mode" in the README.
 
 # ---- 1. build the React frontend -------------------------------------------------
 FROM node:22-alpine AS web
